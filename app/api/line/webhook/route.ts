@@ -117,37 +117,44 @@ export async function POST(request: NextRequest) {
         typeName = typeMatch[1].trim();
       }
 
-      // Supabase から補完（typeName が空の場合）
-      if (!typeName) {
-        try {
-          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '');
-          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      // Supabase から補完（typeName が空 or DB確認）
+      try {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '');
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-          if (supabaseUrl && supabaseKey) {
-            const res = await fetch(
-              `${supabaseUrl}/rest/v1/diagnosis_results?id=eq.${resultId}&select=type_name`,
-              {
-                headers: {
-                  apikey: supabaseKey,
-                  Authorization: `Bearer ${supabaseKey}`,
-                },
-              }
-            );
-            const data = await res.json();
-            if (data?.[0]?.type_name) {
-              typeName = data[0].type_name;
+        if (supabaseUrl && supabaseKey) {
+          console.log('[webhook] querying Supabase for resultId:', resultId);
+          const res = await fetch(
+            `${supabaseUrl}/rest/v1/diagnosis_results?id=eq.${resultId}&select=*`,
+            {
+              headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+              },
             }
+          );
+          const data = await res.json();
+          console.log('[webhook] Supabase result:', JSON.stringify(data));
+
+          if (data?.[0]?.type_name) {
+            if (!typeName) typeName = data[0].type_name;
+            console.log('[webhook] DB typeName:', data[0].type_name);
+          } else {
+            console.log('[webhook] resultId NOT FOUND in DB, using message typeName:', typeName);
           }
-        } catch (e) {
-          console.error('Supabase fetch error:', e);
+        } else {
+          console.log('[webhook] Supabase not configured');
         }
+      } catch (e) {
+        console.error('[webhook] Supabase fetch error:', e);
       }
 
       if (!typeName) {
         typeName = '不明なタイプ';
+        console.log('[webhook] typeName fallback to:', typeName);
       }
 
-      console.log('[webhook] typeName:', typeName);
+      console.log('[webhook] final typeName:', typeName);
 
       // テンプレートからメッセージ生成
       const messageText = buildLineResultMessage(typeName);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DiagnosisResult } from '@/lib/types';
 
 const LINE_OA_ID = process.env.NEXT_PUBLIC_LINE_OA_ID || '';
@@ -8,21 +8,41 @@ const FALLBACK_LINE_URL = 'https://lin.ee/qzc2ot7';
 
 export default function LineCTA({ result }: { result: DiagnosisResult }) {
   const [sent, setSent] = useState(false);
+  const [dbOk, setDbOk] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    try {
+      const status = localStorage.getItem(`diagnosis-db-${result.id}`);
+      setDbOk(status === 'ok');
+      console.log('[LineCTA] resultId:', result.id, 'dbStatus:', status);
+    } catch {
+      setDbOk(false);
+    }
+  }, [result.id]);
 
   function handleClick() {
-    // oaMessage URL を生成
     const text = `診断結果を見ました\nresultId=${result.id}\ntype=${result.type.name}\nlane=${result.lane}\ntags=${result.tags.join(',')}`;
+    console.log('[LineCTA] sending text:', text);
+
     const encoded = encodeURIComponent(text);
 
     let url: string;
     if (LINE_OA_ID && LINE_OA_ID !== 'placeholder') {
       url = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encoded}`;
     } else {
+      // OA_ID未設定 → フォールバック（友だち追加リンク）
       url = FALLBACK_LINE_URL;
     }
 
+    console.log('[LineCTA] opening URL:', url);
     window.open(url, '_blank');
     setSent(true);
+  }
+
+  // DB保存失敗時: typeNameがメッセージに含まれるのでwebhookでテンプレ返信は可能
+  // ただし警告を出す
+  if (dbOk === false) {
+    console.log('[LineCTA] DB save was failed, LINE reply will use typeName from message text');
   }
 
   if (sent) {

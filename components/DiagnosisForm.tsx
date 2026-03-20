@@ -118,7 +118,11 @@ export default function DiagnosisForm() {
         }),
       }).then(() => console.log('[notify] sent')).catch(e => console.log('[notify] error', e));
 
-      // DB保存成功なら結果ページへ、失敗でもlocalStorageがあるので遷移
+      // DB保存状態もlocalStorageに記録（LINE CTA表示制御用）
+      try {
+        localStorage.setItem(`diagnosis-db-${id}`, dbSaved ? 'ok' : 'fail');
+      } catch { /* ignore */ }
+
       if (dbSaved) {
         console.log('[save] DB saved, navigating to result page');
       } else {
