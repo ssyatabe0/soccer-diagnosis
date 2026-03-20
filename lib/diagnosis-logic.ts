@@ -71,7 +71,7 @@ export function getLaneDescription(lane: Lane): { label: string; cta: string; ur
       return {
         label: '無料フォローコース',
         cta: 'まずはLINEで無料アドバイスを受け取る',
-        url: 'https://line.me/R/ti/p/@soccer-kateikyousi',
+        url: 'https://lin.ee/q7xbzrk',
       };
     case 'B':
       return {

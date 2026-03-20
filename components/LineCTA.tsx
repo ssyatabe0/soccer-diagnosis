@@ -1,51 +1,45 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { DiagnosisResult } from '@/lib/types';
 
-const LINE_OA_ID = process.env.NEXT_PUBLIC_LINE_OA_ID || '';
-const FALLBACK_LINE_URL = 'https://lin.ee/qzc2ot7';
+// 友だち追加URL（確実に開く）
+const LINE_FRIEND_URL = 'https://lin.ee/q7xbzrk';
 
 export default function LineCTA({ result }: { result: DiagnosisResult }) {
-  const [sent, setSent] = useState(false);
-  const [dbOk, setDbOk] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    try {
-      const status = localStorage.getItem(`diagnosis-db-${result.id}`);
-      setDbOk(status === 'ok');
-      console.log('[LineCTA] resultId:', result.id, 'dbStatus:', status);
-    } catch {
-      setDbOk(false);
-    }
-  }, [result.id]);
+  const [opened, setOpened] = useState(false);
 
   function handleClick() {
+    console.log('[LineCTA] resultId:', result.id);
+    console.log('[LineCTA] typeName:', result.type.name);
+    console.log('[LineCTA] opening:', LINE_FRIEND_URL);
+
+    // まず友だち追加画面を開く
+    window.open(LINE_FRIEND_URL, '_blank');
+    setOpened(true);
+
+    // resultIdをlocalStorageに保存（友だち追加後にLINEから送る用）
+    try {
+      localStorage.setItem('line-pending-result', JSON.stringify({
+        resultId: result.id,
+        typeName: result.type.name,
+        lane: result.lane,
+        tags: result.tags,
+      }));
+    } catch { /* ignore */ }
+  }
+
+  function handleCopyMessage() {
     const text = `診断結果を見ました\nresultId=${result.id}\ntype=${result.type.name}\nlane=${result.lane}\ntags=${result.tags.join(',')}`;
-    console.log('[LineCTA] sending text:', text);
-
-    const encoded = encodeURIComponent(text);
-
-    let url: string;
-    if (LINE_OA_ID && LINE_OA_ID !== 'placeholder') {
-      url = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encoded}`;
-    } else {
-      // OA_ID未設定 → フォールバック（友だち追加リンク）
-      url = FALLBACK_LINE_URL;
-    }
-
-    console.log('[LineCTA] opening URL:', url);
-    window.open(url, '_blank');
-    setSent(true);
+    navigator.clipboard.writeText(text).then(() => {
+      alert('メッセージをコピーしました。LINEのトーク画面に貼り付けて送信してください。');
+    }).catch(() => {
+      // フォールバック: テキスト選択
+      prompt('以下をコピーしてLINEで送信してください:', text);
+    });
   }
 
-  // DB保存失敗時: typeNameがメッセージに含まれるのでwebhookでテンプレ返信は可能
-  // ただし警告を出す
-  if (dbOk === false) {
-    console.log('[LineCTA] DB save was failed, LINE reply will use typeName from message text');
-  }
-
-  if (sent) {
+  if (opened) {
     return (
       <div className="bg-gradient-to-br from-[#06C755] to-[#05a347] rounded-2xl p-6 mb-4 text-white text-center shadow-lg">
         <div className="text-4xl mb-3">&#10003;</div>
@@ -53,8 +47,14 @@ export default function LineCTA({ result }: { result: DiagnosisResult }) {
           LINEが開きました
         </h3>
         <p className="text-white/80 text-sm leading-relaxed mb-4">
-          LINEでそのまま送信すると<br />続きの結果が届きます
+          友だち追加後、以下のメッセージを送ると<br />続きの結果が届きます
         </p>
+        <button
+          onClick={handleCopyMessage}
+          className="w-full bg-white text-[#06C755] font-bold py-3 px-6 rounded-full shadow-md transition-all active:scale-95 hover:bg-green-50 mb-3"
+        >
+          結果送信用メッセージをコピー
+        </button>
         <button
           onClick={handleClick}
           className="text-white/70 text-xs underline"
@@ -78,10 +78,10 @@ export default function LineCTA({ result }: { result: DiagnosisResult }) {
         onClick={handleClick}
         className="inline-block w-full bg-white text-[#06C755] font-bold py-4 px-6 rounded-full shadow-md transition-all active:scale-95 hover:bg-green-50"
       >
-        この結果をLINEで送る
+        この結果をLINEで受け取る
       </button>
       <p className="text-white/60 text-xs mt-3">
-        LINEが開いたらそのまま送信してください
+        友だち追加後に続きの結果が届きます
       </p>
     </div>
   );
