@@ -4,13 +4,26 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { QUESTIONS } from '@/lib/constants';
 import { calculateDiagnosis } from '@/lib/diagnosis-logic';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// クライアント側で明示的にSupabase初期化（環境変数をランタイムで取得）
+function getClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+  console.log('[supabase] init url:', url ? url.substring(0, 30) + '...' : 'EMPTY');
+  console.log('[supabase] init key:', key ? key.substring(0, 15) + '...' : 'EMPTY');
+  if (!url || !key || url.includes('placeholder')) {
+    return null;
+  }
+  return createClient(url.replace(/\/+$/, ''), key);
+}
 
 export default function DiagnosisForm() {
   const router = useRouter();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const question = QUESTIONS[currentQuestion];
   const progress = ((currentQuestion) / QUESTIONS.length) * 100;
@@ -23,111 +36,98 @@ export default function DiagnosisForm() {
       setCurrentQuestion(currentQuestion + 1);
     } else {
       setIsSubmitting(true);
+      setSaveError('');
 
       const id = crypto.randomUUID();
       const result = calculateDiagnosis(id, newAnswers);
 
-      const payload = {
-        id: id,
-        type_id: result.type.id,
-        type_name: result.type.name,
-        lane: result.lane,
-        tags: result.tags,
-        total_score: result.totalScore,
-        answers: result.answers,
-        created_at: result.createdAt,
-      };
-
       console.log('[save] resultId:', id);
-      console.log('[save] payload:', JSON.stringify(payload));
-      console.log('[save] supabase url:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+      console.log('[save] type:', result.type.name, 'lane:', result.lane);
 
-      // localStorageに保存（フォールバック用）
+      // localStorage保存（フォールバック）
       try {
         localStorage.setItem(`diagnosis-result-${id}`, JSON.stringify({
-          id,
-          typeId: result.type.id,
-          typeName: result.type.name,
-          lane: result.lane,
-          tags: result.tags,
-          totalScore: result.totalScore,
-          answers: result.answers,
-          createdAt: result.createdAt,
+          id, typeId: result.type.id, typeName: result.type.name,
+          lane: result.lane, tags: result.tags, totalScore: result.totalScore,
+          answers: result.answers, createdAt: result.createdAt,
         }));
-        console.log('[save] localStorage OK');
       } catch { /* ignore */ }
 
-      // diagnosis_results insert
-      let dbSaved = false;
-      try {
-        const { data, error } = await supabase
-          .from('diagnosis_results')
-          .insert(payload)
-          .select();
+      // Supabase insert
+      const supabase = getClient();
 
-        if (error) {
-          console.error('[save] diagnosis_results INSERT ERROR:', JSON.stringify(error));
-          alert('保存エラー: ' + (error.message || JSON.stringify(error)));
-        } else {
-          console.log('[save] diagnosis_results INSERT OK:', data);
-          dbSaved = true;
-        }
-      } catch (e) {
-        console.error('[save] diagnosis_results CATCH:', e);
-        alert('保存エラー: 接続に失敗しました');
+      if (!supabase) {
+        console.error('[save] Supabase client is null (env vars missing)');
+        setSaveError('Supabase接続設定がありません。管理者に連絡してください。');
+        setIsSubmitting(false);
+        return;
       }
 
-      // users insert
-      try {
-        const { data, error } = await supabase.from('users').insert({
+      // diagnosis_results insert
+      console.log('[save] inserting diagnosis_results...');
+      const { data: drData, error: drError } = await supabase
+        .from('diagnosis_results')
+        .insert({
           id: id,
-          diagnosis_result_id: id,
           type_id: result.type.id,
           type_name: result.type.name,
           lane: result.lane,
           tags: result.tags,
           total_score: result.totalScore,
-          line_delivery_step: 0,
-          conversion_status: 'new',
-          staff_required: result.lane === 'C',
-          selection_priority: result.tags.includes('selection'),
-        }).select();
+          answers: result.answers,
+          created_at: result.createdAt,
+        })
+        .select();
 
-        if (error) {
-          console.error('[save] users INSERT ERROR:', JSON.stringify(error));
-        } else {
-          console.log('[save] users INSERT OK:', data);
-        }
-      } catch (e) {
-        console.error('[save] users CATCH:', e);
+      if (drError) {
+        console.error('[save] diagnosis_results ERROR:', drError.message, drError.code, drError.details, drError.hint);
+        setSaveError(`保存エラー: ${drError.message} (${drError.code || ''})`);
+        setIsSubmitting(false);
+        return;
       }
 
-      // 管理者メール通知（非同期・遷移をブロックしない）
+      console.log('[save] diagnosis_results OK:', drData);
+
+      // users insert（失敗しても遷移はする）
+      console.log('[save] inserting users...');
+      const { error: uError } = await supabase.from('users').insert({
+        id: id,
+        diagnosis_result_id: id,
+        type_id: result.type.id,
+        type_name: result.type.name,
+        lane: result.lane,
+        tags: result.tags,
+        total_score: result.totalScore,
+        line_delivery_step: 0,
+        conversion_status: 'new',
+        staff_required: result.lane === 'C',
+        selection_priority: result.tags.includes('selection'),
+      });
+
+      if (uError) {
+        console.error('[save] users ERROR:', uError.message, uError.code);
+      } else {
+        console.log('[save] users OK');
+      }
+
+      // DB成功フラグ
+      try {
+        localStorage.setItem(`diagnosis-db-${id}`, 'ok');
+      } catch { /* ignore */ }
+
+      // メール通知（非同期）
       fetch('/api/notify-result', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          resultId: id,
-          typeId: result.type.id,
-          typeName: result.type.name,
-          lane: result.lane,
-          tags: result.tags,
-          totalScore: result.totalScore,
-          answers: result.answers,
-          createdAt: result.createdAt,
+          resultId: id, typeId: result.type.id, typeName: result.type.name,
+          lane: result.lane, tags: result.tags, totalScore: result.totalScore,
+          answers: result.answers, createdAt: result.createdAt,
         }),
-      }).then(() => console.log('[notify] sent')).catch(e => console.log('[notify] error', e));
+      }).catch(e => console.log('[notify] error', e));
 
-      // DB保存状態もlocalStorageに記録（LINE CTA表示制御用）
-      try {
-        localStorage.setItem(`diagnosis-db-${id}`, dbSaved ? 'ok' : 'fail');
-      } catch { /* ignore */ }
-
-      if (dbSaved) {
-        console.log('[save] DB saved, navigating to result page');
-      } else {
-        console.log('[save] DB failed, using localStorage fallback');
-      }
+      // 保存成功 → 結果ページへ
+      console.log('[save] success, navigating to /diagnosis/result/' + id);
       router.push(`/diagnosis/result/${id}`);
     }
   }
@@ -151,6 +151,20 @@ export default function DiagnosisForm() {
 
   return (
     <div className="w-full max-w-lg mx-auto px-4">
+      {/* Save Error */}
+      {saveError && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-red-700 text-sm font-medium">エラーが発生しました</p>
+          <p className="text-red-600 text-xs mt-1">{saveError}</p>
+          <button
+            onClick={() => { setSaveError(''); setIsSubmitting(false); }}
+            className="mt-3 bg-red-600 text-white text-sm font-bold py-2 px-6 rounded-full"
+          >
+            もう一度やり直す
+          </button>
+        </div>
+      )}
+
       {/* Progress Bar */}
       <div className="mb-6">
         <div className="flex justify-between text-xs text-gray-500 mb-1">
