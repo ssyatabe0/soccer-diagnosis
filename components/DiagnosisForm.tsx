@@ -27,7 +27,22 @@ export default function DiagnosisForm() {
       const id = crypto.randomUUID();
       const result = calculateDiagnosis(id, newAnswers);
 
-      // localStorageに保存（最優先・これが表示のフォールバック）
+      const payload = {
+        id: id,
+        type_id: result.type.id,
+        type_name: result.type.name,
+        lane: result.lane,
+        tags: result.tags,
+        total_score: result.totalScore,
+        answers: result.answers,
+        created_at: result.createdAt,
+      };
+
+      console.log('[save] resultId:', id);
+      console.log('[save] payload:', JSON.stringify(payload));
+      console.log('[save] supabase url:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+      // localStorageに保存（フォールバック用）
       try {
         localStorage.setItem(`diagnosis-result-${id}`, JSON.stringify({
           id,
@@ -39,29 +54,32 @@ export default function DiagnosisForm() {
           answers: result.answers,
           createdAt: result.createdAt,
         }));
+        console.log('[save] localStorage OK');
       } catch { /* ignore */ }
 
-      // DB保存（裏で実行・失敗しても無視）
+      // diagnosis_results insert
+      let dbSaved = false;
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('diagnosis_results')
-          .insert({
-            id: id,
-            type_id: result.type.id,
-            type_name: result.type.name,
-            lane: result.lane,
-            tags: result.tags,
-            total_score: result.totalScore,
-            answers: result.answers,
-            created_at: result.createdAt,
-          });
-        if (error) console.error('save error', error);
+          .insert(payload)
+          .select();
+
+        if (error) {
+          console.error('[save] diagnosis_results INSERT ERROR:', JSON.stringify(error));
+          alert('保存エラー: ' + (error.message || JSON.stringify(error)));
+        } else {
+          console.log('[save] diagnosis_results INSERT OK:', data);
+          dbSaved = true;
+        }
       } catch (e) {
-        console.error('save error', e);
+        console.error('[save] diagnosis_results CATCH:', e);
+        alert('保存エラー: 接続に失敗しました');
       }
 
+      // users insert
       try {
-        const { error } = await supabase.from('users').insert({
+        const { data, error } = await supabase.from('users').insert({
           id: id,
           diagnosis_result_id: id,
           type_id: result.type.id,
@@ -73,10 +91,15 @@ export default function DiagnosisForm() {
           conversion_status: 'new',
           staff_required: result.lane === 'C',
           selection_priority: result.tags.includes('selection'),
-        });
-        if (error) console.error('save error users', error);
+        }).select();
+
+        if (error) {
+          console.error('[save] users INSERT ERROR:', JSON.stringify(error));
+        } else {
+          console.log('[save] users INSERT OK:', data);
+        }
       } catch (e) {
-        console.error('save error users', e);
+        console.error('[save] users CATCH:', e);
       }
 
       // 管理者メール通知（非同期・遷移をブロックしない）
@@ -93,9 +116,14 @@ export default function DiagnosisForm() {
           answers: result.answers,
           createdAt: result.createdAt,
         }),
-      }).then(() => console.log('notify sent')).catch(e => console.log('notify error', e));
+      }).then(() => console.log('[notify] sent')).catch(e => console.log('[notify] error', e));
 
-      // 必ず結果ページへ遷移
+      // DB保存成功なら結果ページへ、失敗でもlocalStorageがあるので遷移
+      if (dbSaved) {
+        console.log('[save] DB saved, navigating to result page');
+      } else {
+        console.log('[save] DB failed, using localStorage fallback');
+      }
       router.push(`/diagnosis/result/${id}`);
     }
   }
