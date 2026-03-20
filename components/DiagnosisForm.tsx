@@ -1,93 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { QUESTIONS } from '@/lib/constants';
-import { PREFECTURES } from '@/lib/prefectures';
 import { calculateDiagnosis } from '@/lib/diagnosis-logic';
 import { supabase } from '@/lib/supabase';
 
-type UserInfo = {
-  name: string;
-  email: string;
-  prefecture: string;
-};
-
-const STORAGE_KEY = 'soccer-diagnosis-user';
-
-function loadUserInfo(): UserInfo | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as UserInfo;
-  } catch {
-    return null;
-  }
-}
-
-function saveUserInfo(info: UserInfo) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(info));
-}
-
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
 export default function DiagnosisForm() {
   const router = useRouter();
-
-  // Phase: 'input' → 'quiz' → 'submitting'
-  const [phase, setPhase] = useState<'input' | 'quiz' | 'submitting'>('input');
-
-  // User info
-  const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [userPrefecture, setUserPrefecture] = useState('');
-  const [inputErrors, setInputErrors] = useState<string[]>([]);
-
-  // Quiz
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Restore from localStorage
-  useEffect(() => {
-    const saved = loadUserInfo();
-    if (saved) {
-      setUserName(saved.name);
-      setUserEmail(saved.email);
-      setUserPrefecture(saved.prefecture);
-    }
-  }, []);
-
-  // --- Input Phase ---
-  function handleStartDiagnosis() {
-    const errors: string[] = [];
-    if (!userName.trim()) errors.push('お名前を入力してください');
-    if (!userEmail.trim()) {
-      errors.push('メールアドレスを入力してください');
-    } else if (!isValidEmail(userEmail.trim())) {
-      errors.push('メールアドレスの形式が正しくありません');
-    }
-    if (!userPrefecture) errors.push('都道府県を選択してください');
-
-    if (errors.length > 0) {
-      setInputErrors(errors);
-      return;
-    }
-
-    setInputErrors([]);
-    const info: UserInfo = {
-      name: userName.trim(),
-      email: userEmail.trim(),
-      prefecture: userPrefecture,
-    };
-    saveUserInfo(info);
-    setPhase('quiz');
-  }
-
-  // --- Quiz Phase ---
   const question = QUESTIONS[currentQuestion];
   const progress = ((currentQuestion) / QUESTIONS.length) * 100;
 
@@ -98,7 +22,7 @@ export default function DiagnosisForm() {
       setAnswers(newAnswers);
       setCurrentQuestion(currentQuestion + 1);
     } else {
-      setPhase('submitting');
+      setIsSubmitting(true);
       try {
         const id = crypto.randomUUID();
         const result = calculateDiagnosis(id, newAnswers);
@@ -121,13 +45,13 @@ export default function DiagnosisForm() {
         if (error) {
           console.error('INSERT ERROR:', error);
           alert('保存エラー: ' + error.message);
-          setPhase('quiz');
+          setIsSubmitting(false);
           return;
         }
 
         console.log('INSERT SUCCESS:', data);
 
-        // users insert（name, email, prefecture 含む）
+        // users insert
         const { error: userError } = await supabase.from('users').insert({
           id: id,
           diagnosis_result_id: id,
@@ -136,9 +60,6 @@ export default function DiagnosisForm() {
           lane: result.lane,
           tags: result.tags,
           total_score: result.totalScore,
-          name: userName.trim(),
-          email: userEmail.trim(),
-          prefecture: userPrefecture,
           line_delivery_step: 0,
           conversion_status: 'new',
           staff_required: result.lane === 'C',
@@ -153,7 +74,7 @@ export default function DiagnosisForm() {
       } catch (e) {
         console.error('FATAL ERROR:', e);
         alert('エラーが発生しました');
-        setPhase('quiz');
+        setIsSubmitting(false);
       }
     }
   }
@@ -165,8 +86,7 @@ export default function DiagnosisForm() {
     }
   }
 
-  // --- Render: Submitting ---
-  if (phase === 'submitting') {
+  if (isSubmitting) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
         <div className="animate-spin w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full mb-4" />
@@ -176,91 +96,6 @@ export default function DiagnosisForm() {
     );
   }
 
-  // --- Render: Input Phase ---
-  if (phase === 'input') {
-    return (
-      <div className="w-full max-w-lg mx-auto px-4">
-        <div className="text-center mb-8">
-          <h2 className="text-xl font-extrabold text-gray-900 mb-2">
-            まずは簡単な情報入力
-          </h2>
-          <p className="text-green-600 text-sm font-medium">
-            30秒で診断できます
-          </p>
-        </div>
-
-        <div className="space-y-5">
-          {/* お名前 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              お名前 <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={userName}
-              onChange={e => setUserName(e.target.value)}
-              placeholder="山田 太郎"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* メールアドレス */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              メールアドレス <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              value={userEmail}
-              onChange={e => setUserEmail(e.target.value)}
-              placeholder="example@email.com"
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-            />
-          </div>
-
-          {/* 都道府県 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              都道府県 <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={userPrefecture}
-              onChange={e => setUserPrefecture(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
-            >
-              <option value="">選択してください</option>
-              {PREFECTURES.map(pref => (
-                <option key={pref} value={pref}>{pref}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Errors */}
-        {inputErrors.length > 0 && (
-          <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3">
-            {inputErrors.map((err, i) => (
-              <p key={i} className="text-red-600 text-sm">{err}</p>
-            ))}
-          </div>
-        )}
-
-        {/* Start Button */}
-        <button
-          onClick={handleStartDiagnosis}
-          className="mt-8 w-full bg-green-600 hover:bg-green-700 text-white text-lg font-bold py-4 rounded-full shadow-lg shadow-green-200 transition-all active:scale-95"
-        >
-          無料診断を始める
-        </button>
-
-        <p className="text-gray-400 text-xs mt-4 text-center">
-          ※ 個人情報は診断結果のご案内にのみ使用します
-        </p>
-      </div>
-    );
-  }
-
-  // --- Render: Quiz Phase ---
   return (
     <div className="w-full max-w-lg mx-auto px-4">
       {/* Progress Bar */}

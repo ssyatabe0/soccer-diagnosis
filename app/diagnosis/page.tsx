@@ -12,6 +12,9 @@ export default function DiagnosisPage() {
         <p className="text-center text-green-700 font-bold text-sm">
           サッカー才能の出し方診断
         </p>
+        <p className="text-center text-gray-400 text-xs mt-1">
+          30秒で診断できます
+        </p>
       </header>
 
       {/* Main */}

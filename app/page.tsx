@@ -11,7 +11,7 @@ export default function Home() {
       {/* Hero */}
       <main className="flex flex-col items-center w-full max-w-lg mx-auto px-4 pt-8 pb-16">
         <div className="text-center mb-8">
-          <p className="text-green-700 font-bold text-sm mb-2">無料・30秒で完了</p>
+          <p className="text-green-700 font-bold text-sm mb-2">無料でタイプをチェック・30秒で完了</p>
           <h1 className="text-3xl font-extrabold text-gray-900 leading-tight mb-4">
             サッカー才能の
             <br />
@@ -63,7 +63,7 @@ export default function Home() {
           href="/diagnosis"
           className="w-full bg-green-600 hover:bg-green-700 text-white text-lg font-bold py-4 px-8 rounded-full text-center shadow-lg shadow-green-200 transition-all active:scale-95"
         >
-          無料で診断する（30秒）
+          無料でタイプをチェック（30秒）
         </Link>
 
         <p className="text-gray-400 text-xs mt-4 text-center">
