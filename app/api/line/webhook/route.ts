@@ -89,6 +89,8 @@ export async function POST(request: NextRequest) {
     const body = JSON.parse(rawBody);
     const events = body.events || [];
 
+    console.log('[webhook] received:', JSON.stringify({ eventCount: events.length }));
+
     for (const event of events) {
       if (event.type !== 'message' || event.message?.type !== 'text') continue;
 
@@ -96,11 +98,17 @@ export async function POST(request: NextRequest) {
       const replyToken = event.replyToken;
       const userId = event.source?.userId;
 
+      console.log('[webhook] message text:', text);
+
       // resultId を抽出
       const match = text.match(/resultId=([a-f0-9-]+)/i);
-      if (!match) continue;
+      if (!match) {
+        console.log('[webhook] no resultId found in message, skipping');
+        continue;
+      }
 
       const resultId = match[1];
+      console.log('[webhook] resultId:', resultId);
 
       // typeName を本文から抽出（第一優先）
       let typeName = '';
@@ -139,13 +147,21 @@ export async function POST(request: NextRequest) {
         typeName = '不明なタイプ';
       }
 
+      console.log('[webhook] typeName:', typeName);
+
       // テンプレートからメッセージ生成
       const messageText = buildLineResultMessage(typeName);
 
       // reply を試行、失敗なら push
       const replied = await replyMessage(replyToken, messageText);
-      if (!replied && userId) {
-        await pushMessage(userId, messageText);
+      if (replied) {
+        console.log('[webhook] reply success:', resultId, typeName);
+      } else {
+        console.log('[webhook] reply failed, trying push to:', userId);
+        if (userId) {
+          await pushMessage(userId, messageText);
+          console.log('[webhook] push sent:', resultId, userId);
+        }
       }
 
       // Supabase に line_user_id を紐付け
@@ -175,7 +191,7 @@ export async function POST(request: NextRequest) {
         console.error('Supabase update error:', e);
       }
 
-      console.log('LINE auto-reply sent:', resultId, typeName);
+      console.log('[webhook] done:', resultId, typeName, userId);
     }
 
     return NextResponse.json({ status: 'ok' });
