@@ -79,6 +79,22 @@ export default function DiagnosisForm() {
         console.error('save error users', e);
       }
 
+      // 管理者メール通知（非同期・遷移をブロックしない）
+      fetch('/api/notify-result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resultId: id,
+          typeId: result.type.id,
+          typeName: result.type.name,
+          lane: result.lane,
+          tags: result.tags,
+          totalScore: result.totalScore,
+          answers: result.answers,
+          createdAt: result.createdAt,
+        }),
+      }).then(() => console.log('notify sent')).catch(e => console.log('notify error', e));
+
       // 必ず結果ページへ遷移
       router.push(`/diagnosis/result/${id}`);
     }
