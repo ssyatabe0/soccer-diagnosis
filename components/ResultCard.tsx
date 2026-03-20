@@ -3,15 +3,14 @@
 import { DiagnosisResult } from '@/lib/types';
 import { DEPARTMENT_LINKS } from '@/lib/constants';
 import ShareButtons from './ShareButtons';
-
-const LINE_URL = 'https://lin.ee/qzc2ot7';
+import LineCTA from './LineCTA';
 
 export default function ResultCard({ result }: { result: DiagnosisResult }) {
   const type = result.type;
 
   return (
     <div className="w-full max-w-lg mx-auto px-4 pb-16">
-      {/* Hidden result ID for future LIFF integration */}
+      {/* Hidden result ID */}
       <input type="hidden" id="diagnosis-result-id" value={result.id} />
 
       {/* ===== 無料公開セクション ===== */}
@@ -33,7 +32,7 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
         )}
       </div>
 
-      {/* Aruaru Section (無料) */}
+      {/* Aruaru Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4">
         <h2 className="font-bold text-gray-900 text-sm mb-3">あるある</h2>
         <ul className="space-y-2">
@@ -46,13 +45,13 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
         </ul>
       </div>
 
-      {/* Priority Theme (無料) */}
+      {/* Priority Theme */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-4">
         <h2 className="font-bold text-gray-900 text-sm mb-2">今のフェーズの優先テーマ</h2>
         <p className="text-lg font-bold text-yellow-700">{type.priorityTheme}</p>
       </div>
 
-      {/* Related Departments (無料) */}
+      {/* Related Departments */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4">
         <h2 className="font-bold text-gray-900 text-sm mb-3">関連診療科</h2>
         <div className="flex flex-wrap gap-2">
@@ -70,9 +69,7 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
         </div>
       </div>
 
-      {/* ===== LINE誘導セクション（核心はLINEで） ===== */}
-
-      {/* Locked Content Preview */}
+      {/* ===== ロックコンテンツプレビュー ===== */}
       <div className="relative bg-white rounded-2xl shadow-sm border border-gray-200 p-5 mb-4 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/60 to-white z-10 pointer-events-none" />
         <h2 className="font-bold text-gray-900 text-sm mb-3">原因の再定義</h2>
@@ -90,27 +87,8 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
         </ul>
       </div>
 
-      {/* LINE CTA - Primary */}
-      <div className="bg-gradient-to-br from-[#06C755] to-[#05a347] rounded-2xl p-6 mb-4 text-white text-center shadow-lg">
-        <p className="text-white/80 text-xs mb-2">ここまでが無料で見られる結果です</p>
-        <h3 className="text-lg font-extrabold mb-2">
-          詳しい伸ばし方を<br />LINEで受け取る
-        </h3>
-        <p className="text-white/80 text-xs mb-4 leading-relaxed">
-          お子さんのタイプに合う伸ばし方を<br />LINEでご案内します
-        </p>
-        <a
-          href={LINE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block w-full bg-white text-[#06C755] font-bold py-4 px-6 rounded-full shadow-md transition-all active:scale-95 hover:bg-green-50"
-        >
-          続きの結果をLINEで受け取る
-        </a>
-        <p className="text-white/60 text-xs mt-3">
-          無料・1タップで登録できます
-        </p>
-      </div>
+      {/* ===== LINE CTA（LIFF連携） ===== */}
+      <LineCTA result={result} />
 
       {/* Sub Label Messages */}
       {result.subLabels.length > 0 && (
@@ -140,23 +118,11 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
         ))}
       </div>
 
-      {/* Secondary CTA Section */}
+      {/* Secondary CTA */}
       <div className="space-y-3 mb-8">
         <h2 className="font-bold text-gray-900 text-base text-center mb-4">
           次のステップ
         </h2>
-
-        {/* LINE CTA - Secondary */}
-        <a
-          href={LINE_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full bg-[#06C755] hover:bg-[#05b34d] text-white text-center font-bold py-4 px-6 rounded-full shadow-lg transition-all active:scale-95"
-        >
-          詳しい伸ばし方をLINEで受け取る
-        </a>
-
-        {/* Existing CTAs */}
         <a
           href="https://soccer-kateikyousi.com/%e3%82%aa%e3%83%b3%e3%83%a9%e3%82%a4%e3%83%b3%e8%a8%ba%e6%96%ad/"
           target="_blank"
@@ -175,7 +141,7 @@ export default function ResultCard({ result }: { result: DiagnosisResult }) {
         </a>
       </div>
 
-      {/* Share Section */}
+      {/* Share */}
       <ShareButtons result={result} />
     </div>
   );
