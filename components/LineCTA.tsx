@@ -15,7 +15,7 @@ export default function LineCTA({ result }: { result: DiagnosisResult }) {
     const encoded = encodeURIComponent(text);
 
     let url: string;
-    if (LINE_OA_ID) {
+    if (LINE_OA_ID && LINE_OA_ID !== 'placeholder') {
       url = `https://line.me/R/oaMessage/${LINE_OA_ID}/?${encoded}`;
     } else {
       url = FALLBACK_LINE_URL;
