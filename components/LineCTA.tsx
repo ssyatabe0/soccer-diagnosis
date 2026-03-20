@@ -5,8 +5,12 @@ import { DiagnosisResult } from '@/lib/types';
 const LINE_FRIEND_URL = 'https://lin.ee/q7xbzrk';
 
 export default function LineCTA({ result }: { result: DiagnosisResult }) {
-  const text = `診断結果をお願いします\nID: ${result.id}\nタイプ: ${result.type.name}`;
-  const lineTextUrl = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+  function handleSendMessage() {
+    const text = `診断結果をお願いします\nID: ${result.id}\nタイプ: ${result.type.name}`;
+    const url = `https://line.me/R/msg/text/?${encodeURIComponent(text)}`;
+    console.log('[LineCTA] navigating to:', url);
+    window.location.href = url;
+  }
 
   return (
     <div className="bg-gradient-to-br from-[#06C755] to-[#05a347] rounded-2xl p-6 mb-4 text-white text-center shadow-lg">
@@ -18,15 +22,13 @@ export default function LineCTA({ result }: { result: DiagnosisResult }) {
         お子さんのタイプに合う伸ばし方を<br />LINEでご案内します
       </p>
 
-      {/* 友だち追加済み → 本文自動入力で開く */}
-      <a
-        href={lineTextUrl}
-        target="_blank"
-        rel="noopener noreferrer"
+      {/* 追加済み → 本文自動入力でLINEトークを開く */}
+      <button
+        onClick={handleSendMessage}
         className="block w-full bg-white text-[#06C755] font-bold py-4 px-6 rounded-full shadow-md transition-all active:scale-95 hover:bg-green-50 mb-3"
       >
         追加済みの方はこちら
-      </a>
+      </button>
 
       {/* 未追加 → 友だち追加 */}
       <a
