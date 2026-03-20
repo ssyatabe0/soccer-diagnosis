@@ -44,31 +44,46 @@ export default function DiagnosisForm() {
 
         if (error) {
           console.error('INSERT ERROR:', error);
-          alert('保存エラー: ' + error.message);
-          setIsSubmitting(false);
-          return;
+          // DB保存失敗でも結果ページへ遷移（ローカル計算で表示可能）
+        } else {
+          console.log('INSERT SUCCESS:', data);
         }
 
-        console.log('INSERT SUCCESS:', data);
-
-        // users insert
-        const { error: userError } = await supabase.from('users').insert({
-          id: id,
-          diagnosis_result_id: id,
-          type_id: result.type.id,
-          type_name: result.type.name,
-          lane: result.lane,
-          tags: result.tags,
-          total_score: result.totalScore,
-          line_delivery_step: 0,
-          conversion_status: 'new',
-          staff_required: result.lane === 'C',
-          selection_priority: result.tags.includes('selection'),
-        });
-
-        if (userError) {
-          console.error('USERS INSERT ERROR:', userError);
+        // users insert（失敗しても遷移はブロックしない）
+        try {
+          const { error: userError } = await supabase.from('users').insert({
+            id: id,
+            diagnosis_result_id: id,
+            type_id: result.type.id,
+            type_name: result.type.name,
+            lane: result.lane,
+            tags: result.tags,
+            total_score: result.totalScore,
+            line_delivery_step: 0,
+            conversion_status: 'new',
+            staff_required: result.lane === 'C',
+            selection_priority: result.tags.includes('selection'),
+          });
+          if (userError) {
+            console.error('USERS INSERT ERROR:', userError);
+          }
+        } catch (ue) {
+          console.error('USERS INSERT CATCH:', ue);
         }
+
+        // 診断結果をlocalStorageに保存（DB失敗時のフォールバック）
+        try {
+          localStorage.setItem(`diagnosis-result-${id}`, JSON.stringify({
+            id,
+            typeId: result.type.id,
+            typeName: result.type.name,
+            lane: result.lane,
+            tags: result.tags,
+            totalScore: result.totalScore,
+            answers: result.answers,
+            createdAt: result.createdAt,
+          }));
+        } catch { /* ignore */ }
 
         router.push(`/diagnosis/result/${id}`);
       } catch (e) {

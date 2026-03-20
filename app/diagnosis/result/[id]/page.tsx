@@ -1,5 +1,5 @@
-import { notFound } from 'next/navigation';
 import ResultCard from '@/components/ResultCard';
+import ResultFallback from '@/components/ResultFallback';
 import { DIAGNOSIS_TYPES, SUB_LABELS } from '@/lib/constants';
 import type { DiagnosisResult, Lane, TargetTag } from '@/lib/types';
 
@@ -8,13 +8,14 @@ async function getResult(id: string): Promise<DiagnosisResult | null> {
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    console.error('[result] Supabase URL or key not configured');
+    console.error('[result] Supabase not configured');
     return null;
   }
 
   try {
+    const cleanUrl = supabaseUrl.replace(/\/+$/, '');
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/diagnosis_results?id=eq.${id}&select=*`,
+      `${cleanUrl}/rest/v1/diagnosis_results?id=eq.${id}&select=*`,
       {
         headers: {
           apikey: supabaseKey,
@@ -25,7 +26,7 @@ async function getResult(id: string): Promise<DiagnosisResult | null> {
     );
 
     if (!res.ok) {
-      console.error('[result] Supabase fetch failed:', res.status, await res.text());
+      console.error('[result] Supabase fetch failed:', res.status);
       return null;
     }
 
@@ -50,7 +51,7 @@ async function getResult(id: string): Promise<DiagnosisResult | null> {
       createdAt: row.created_at,
     };
   } catch (err) {
-    console.error('[result] Unexpected error fetching result:', err);
+    console.error('[result] Error:', err);
     return null;
   }
 }
@@ -75,10 +76,23 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const result = await getResult(id);
 
-  if (!result) {
-    notFound();
+  // DB取得成功 → サーバーで描画
+  if (result) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <header className="bg-white border-b border-gray-100 py-3 px-4">
+          <p className="text-center text-green-700 font-bold text-sm">
+            サッカー才能の出し方診断 - 結果
+          </p>
+        </header>
+        <main className="flex-1 py-8">
+          <ResultCard result={result} />
+        </main>
+      </div>
+    );
   }
 
+  // DB取得失敗 → クライアントでlocalStorageから復元
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-white border-b border-gray-100 py-3 px-4">
@@ -87,7 +101,7 @@ export default async function ResultPage({ params }: { params: Promise<{ id: str
         </p>
       </header>
       <main className="flex-1 py-8">
-        <ResultCard result={result} />
+        <ResultFallback id={id} />
       </main>
     </div>
   );
