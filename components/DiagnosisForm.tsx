@@ -9,7 +9,9 @@ const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 async function supabaseInsert(table: string, payload: Record<string, unknown>) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+  const fetchUrl = `${SUPABASE_URL}/rest/v1/${table}`;
+  console.log('[supabaseInsert] POST', fetchUrl);
+  const res = await fetch(fetchUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -54,8 +56,9 @@ export default function DiagnosisForm() {
       const result = calculateDiagnosis(id, newAnswers);
 
       console.log('[save] resultId:', id);
-      console.log('[save] supabase url:', SUPABASE_URL);
-      console.log('[save] supabase key:', SUPABASE_KEY ? SUPABASE_KEY.slice(0, 15) + '...' : 'EMPTY');
+      console.log('[save] FULL supabase url:', SUPABASE_URL);
+      console.log('[save] FULL supabase key:', SUPABASE_KEY);
+      console.log('[save] fetch target:', SUPABASE_URL + '/rest/v1/diagnosis_results');
 
       // localStorage保存（フォールバック）
       try {
