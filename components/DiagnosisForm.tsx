@@ -4,18 +4,30 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { QUESTIONS } from '@/lib/constants';
 import { calculateDiagnosis } from '@/lib/diagnosis-logic';
-import { createClient } from '@supabase/supabase-js';
 
-// クライアント側で明示的にSupabase初期化（環境変数をランタイムで取得）
-function getClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  console.log('[supabase] init url:', url ? url.substring(0, 30) + '...' : 'EMPTY');
-  console.log('[supabase] init key:', key ? key.substring(0, 15) + '...' : 'EMPTY');
-  if (!url || !key || url.includes('placeholder')) {
-    return null;
+const SUPABASE_URL = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+async function supabaseInsert(table: string, payload: Record<string, unknown>) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Prefer: 'return=representation',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const text = await res.text();
+  let data = null;
+  try { data = JSON.parse(text); } catch { /* not json */ }
+
+  if (!res.ok) {
+    return { data: null, error: { status: res.status, message: data?.message || text } };
   }
-  return createClient(url.replace(/\/+$/, ''), key);
+  return { data, error: null };
 }
 
 export default function DiagnosisForm() {
@@ -42,7 +54,8 @@ export default function DiagnosisForm() {
       const result = calculateDiagnosis(id, newAnswers);
 
       console.log('[save] resultId:', id);
-      console.log('[save] type:', result.type.name, 'lane:', result.lane);
+      console.log('[save] supabase url:', SUPABASE_URL);
+      console.log('[save] supabase key:', SUPABASE_KEY ? SUPABASE_KEY.slice(0, 15) + '...' : 'EMPTY');
 
       // localStorage保存（フォールバック）
       try {
@@ -53,21 +66,17 @@ export default function DiagnosisForm() {
         }));
       } catch { /* ignore */ }
 
-      // Supabase insert
-      const supabase = getClient();
-
-      if (!supabase) {
-        console.error('[save] Supabase client is null (env vars missing)');
-        setSaveError('Supabase接続設定がありません。管理者に連絡してください。');
+      // diagnosis_results insert（fetch直接）
+      if (!SUPABASE_URL || !SUPABASE_KEY) {
+        console.error('[save] Supabase env vars missing');
+        setSaveError('Supabase接続設定がありません');
         setIsSubmitting(false);
         return;
       }
 
-      // diagnosis_results insert
       console.log('[save] inserting diagnosis_results...');
-      const { data: drData, error: drError } = await supabase
-        .from('diagnosis_results')
-        .insert({
+      try {
+        const { data, error } = await supabaseInsert('diagnosis_results', {
           id: id,
           type_id: result.type.id,
           type_name: result.type.name,
@@ -76,44 +85,45 @@ export default function DiagnosisForm() {
           total_score: result.totalScore,
           answers: result.answers,
           created_at: result.createdAt,
-        })
-        .select();
+        });
 
-      if (drError) {
-        console.error('[save] diagnosis_results ERROR:', drError.message, drError.code, drError.details, drError.hint);
-        setSaveError(`保存エラー: ${drError.message} (${drError.code || ''})`);
+        if (error) {
+          console.error('[save] diagnosis_results ERROR:', error);
+          setSaveError(`保存エラー: ${error.message} (${error.status})`);
+          setIsSubmitting(false);
+          return;
+        }
+        console.log('[save] diagnosis_results OK:', data);
+      } catch (e) {
+        console.error('[save] diagnosis_results FETCH ERROR:', e);
+        setSaveError(`接続エラー: ${e instanceof Error ? e.message : String(e)}`);
         setIsSubmitting(false);
         return;
       }
 
-      console.log('[save] diagnosis_results OK:', drData);
-
-      // users insert（失敗しても遷移はする）
-      console.log('[save] inserting users...');
-      const { error: uError } = await supabase.from('users').insert({
-        id: id,
-        diagnosis_result_id: id,
-        type_id: result.type.id,
-        type_name: result.type.name,
-        lane: result.lane,
-        tags: result.tags,
-        total_score: result.totalScore,
-        line_delivery_step: 0,
-        conversion_status: 'new',
-        staff_required: result.lane === 'C',
-        selection_priority: result.tags.includes('selection'),
-      });
-
-      if (uError) {
-        console.error('[save] users ERROR:', uError.message, uError.code);
-      } else {
-        console.log('[save] users OK');
+      // users insert（失敗しても遷移する）
+      try {
+        const { error } = await supabaseInsert('users', {
+          id: id,
+          diagnosis_result_id: id,
+          type_id: result.type.id,
+          type_name: result.type.name,
+          lane: result.lane,
+          tags: result.tags,
+          total_score: result.totalScore,
+          line_delivery_step: 0,
+          conversion_status: 'new',
+          staff_required: result.lane === 'C',
+          selection_priority: result.tags.includes('selection'),
+        });
+        if (error) console.error('[save] users ERROR:', error);
+        else console.log('[save] users OK');
+      } catch (e) {
+        console.error('[save] users FETCH ERROR:', e);
       }
 
       // DB成功フラグ
-      try {
-        localStorage.setItem(`diagnosis-db-${id}`, 'ok');
-      } catch { /* ignore */ }
+      try { localStorage.setItem(`diagnosis-db-${id}`, 'ok'); } catch { /* ignore */ }
 
       // メール通知（非同期）
       fetch('/api/notify-result', {
@@ -126,8 +136,7 @@ export default function DiagnosisForm() {
         }),
       }).catch(e => console.log('[notify] error', e));
 
-      // 保存成功 → 結果ページへ
-      console.log('[save] success, navigating to /diagnosis/result/' + id);
+      console.log('[save] success → /diagnosis/result/' + id);
       router.push(`/diagnosis/result/${id}`);
     }
   }
@@ -151,13 +160,12 @@ export default function DiagnosisForm() {
 
   return (
     <div className="w-full max-w-lg mx-auto px-4">
-      {/* Save Error */}
       {saveError && (
         <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-red-700 text-sm font-medium">エラーが発生しました</p>
           <p className="text-red-600 text-xs mt-1">{saveError}</p>
           <button
-            onClick={() => { setSaveError(''); setIsSubmitting(false); }}
+            onClick={() => { setSaveError(''); }}
             className="mt-3 bg-red-600 text-white text-sm font-bold py-2 px-6 rounded-full"
           >
             もう一度やり直す
@@ -165,7 +173,6 @@ export default function DiagnosisForm() {
         </div>
       )}
 
-      {/* Progress Bar */}
       <div className="mb-6">
         <div className="flex justify-between text-xs text-gray-500 mb-1">
           <span>Q{currentQuestion + 1} / {QUESTIONS.length}</span>
@@ -179,17 +186,13 @@ export default function DiagnosisForm() {
         </div>
       </div>
 
-      {/* Question */}
       <div className="mb-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-1">
-          {question.text}
-        </h2>
+        <h2 className="text-lg font-bold text-gray-900 mb-1">{question.text}</h2>
         {question.description && (
           <p className="text-sm text-gray-500">{question.description}</p>
         )}
       </div>
 
-      {/* Options */}
       <div className="space-y-3">
         {question.options.map((option, i) => (
           <button
@@ -202,7 +205,6 @@ export default function DiagnosisForm() {
         ))}
       </div>
 
-      {/* Back Button */}
       {currentQuestion > 0 && (
         <button
           onClick={handleBack}
