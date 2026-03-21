@@ -1,131 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getReplyByTypeName } from '@/lib/line-result-templates';
 
-const TYPE_KEYS = [
-  '技術あるのに出せない温存型',
-  '最初の一歩が遅れる受け身型',
-  'ボール受ける前で負ける後手型',
-  '周りに合わせすぎる遠慮型',
-  '先に急ぎすぎる突進型',
-  'ミスを恐れて選択が減る慎重型',
-  '試合で消えやすい慎重派',
-  '練習と試合で別人になる分離型',
-  '1対1で力を隠す安全運転型',
-  '見えてるのに出せない準備不足型',
-  'ボール触れば良いのに触れない待機型',
-  '頭ではわかってるのに体が合わない思考先行型',
-];
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const events = body.events || [];
 
-const SHORT_MAP: Record<string, string> = {
-  '温存型': '技術あるのに出せない温存型',
-  '受け身型': '最初の一歩が遅れる受け身型',
-  '後手型': 'ボール受ける前で負ける後手型',
-  '遠慮型': '周りに合わせすぎる遠慮型',
-  '突進型': '先に急ぎすぎる突進型',
-  '慎重型': 'ミスを恐れて選択が減る慎重型',
-  '慎重派': '試合で消えやすい慎重派',
-  '分離型': '練習と試合で別人になる分離型',
-  '安全運転型': '1対1で力を隠す安全運転型',
-  '準備不足型': '見えてるのに出せない準備不足型',
-  '待機型': 'ボール触れば良いのに触れない待機型',
-  '思考先行型': '頭ではわかってるのに体が合わない思考先行型',
-};
+    for (const event of events) {
+      if (event.type !== 'message') continue;
+      if (event.message.type !== 'text') continue;
 
-export async function GET() {
-  return NextResponse.json({ ok: true });
-}
+      const text = event.message.text || '';
+      const replyToken = event.replyToken;
 
-export async function POST(request: NextRequest) {
-  const TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || '';
-  console.log('=== WEBHOOK ===');
+      // =========================
+      // ▼絶対にここだけで完結させる
+      // =========================
 
-  const raw = await request.text();
-  const events = JSON.parse(raw).events || [];
+      const normalized = text.replace(/\s/g, '').replace(/　/g, '');
 
-  for (const ev of events) {
-    if (ev.type !== 'message' || ev.message?.type !== 'text') continue;
+      let type = null;
 
-    const text: string = ev.message.text || '';
-    const replyToken: string = ev.replyToken;
-    console.log('[wh] text:', text);
+      const match = normalized.match(/タイプ[:：]?(.+?)型/);
+      if (match) type = match[1] + '型';
 
-    // === replyText を1つだけ決める ===
-    let replyText = '';
-    let typeName = '';
-
-    // ① ID抽出 → DB検索
-    const idMatch = text.match(/(?:診断結果)?ID[:：]\s*([a-f0-9-]+)/i);
-    if (idMatch) {
-      const resultId = idMatch[1];
-      console.log('[wh] resultId:', resultId);
-      try {
-        const url = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
-        const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-        if (url && key && !url.includes('placeholder')) {
-          const r = await fetch(`${url}/rest/v1/diagnosis_results?id=eq.${resultId}&select=type_name`, {
-            headers: { apikey: key, Authorization: `Bearer ${key}` },
-          });
-          const d = await r.json();
-          console.log('[wh] db:', JSON.stringify(d));
-          if (d?.[0]?.type_name) typeName = d[0].type_name;
-        }
-      } catch (e) {
-        console.log('[wh] db err:', e);
+      if (!type) {
+        if (normalized.includes('突進型')) type = '先に急ぎすぎる突進型';
+        if (normalized.includes('遠慮型')) type = '周りに合わせすぎる遠慮型';
+        if (normalized.includes('温存型')) type = '技術あるのに出せない温存型';
       }
+
+      let replyText = '';
+
+      if (type === '先に急ぎすぎる突進型') {
+        replyText = '突進型の改善は「一度止まる→状況を見る」これだけでOK';
+      } else if (type === '周りに合わせすぎる遠慮型') {
+        replyText = '遠慮型は「自分で決める」これだけで変わる';
+      } else if (type === '技術あるのに出せない温存型') {
+        replyText = '温存型は「自分にOK出す」だけで変わる';
+      } else {
+        replyText = '受信OK（テスト成功）';
+      }
+
+      // =========================
+      // ▼ここで1回だけ返信
+      // =========================
+
+      const res = await fetch('https://api.line.me/v2/bot/message/reply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+        },
+        body: JSON.stringify({
+          replyToken,
+          messages: [{ type: 'text', text: replyText }],
+        }),
+      });
+
+      const resText = await res.text();
+
+      console.log('====== RESULT ======');
+      console.log('text:', text);
+      console.log('normalized:', normalized);
+      console.log('type:', type);
+      console.log('status:', res.status);
+      console.log('body:', resText);
+
+      // ★ここ重要（絶対これ入れる）
+      return NextResponse.json({ ok: true });
     }
 
-    // ② DB取得できなければ本文の「タイプ:」行
-    if (!typeName) {
-      const m = text.match(/タイプ[:：]\s*(.+?)(\n|$)/);
-      if (m) typeName = m[1].trim();
-    }
+    return NextResponse.json({ ok: true });
 
-    // ③ それでもなければ部分一致
-    if (!typeName) {
-      for (const k of TYPE_KEYS) { if (text.includes(k)) { typeName = k; break; } }
-    }
-    if (!typeName) {
-      for (const [s, f] of Object.entries(SHORT_MAP)) { if (text.includes(s)) { typeName = f; break; } }
-    }
-
-    // replyText 確定
-    if (typeName) {
-      replyText = getReplyByTypeName(typeName);
-      console.log('[wh] matched:', typeName);
-    } else {
-      replyText = '診断結果を確認しました。\n\n続きの結果を受け取るには、サイトの「結果をコピーする」で取得したテキストをそのまま送ってください。';
-      console.log('[wh] fallback');
-    }
-
-    // === 1回だけ返信 ===
-    console.log('[wh] replyText:', replyText.slice(0, 80));
-    console.log('[wh] replyToken:', replyToken);
-
-    const messages: { type: string; text: string }[] = [];
-    if (replyText.length <= 5000) {
-      messages.push({ type: 'text', text: replyText });
-    } else {
-      messages.push({ type: 'text', text: replyText.slice(0, 4900) + '\n\n（続きます）' });
-      messages.push({ type: 'text', text: replyText.slice(4900, 9900) });
-    }
-
-    const res = await fetch('https://api.line.me/v2/bot/message/reply', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${TOKEN}`,
-      },
-      body: JSON.stringify({ replyToken, messages }),
-    });
-
-    const resBody = await res.text();
-    console.log('[wh] reply status:', res.status);
-    console.log('[wh] reply body:', resBody);
-    if (res.status === 409) {
-      console.log('[wh] ⚠ 409 = replyToken already used. LINE応答メッセージがONの可能性あり');
-    }
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: 'err' }, { status: 500 });
   }
-
-  console.log('=== DONE ===');
-  return NextResponse.json({ status: 'ok' });
 }
