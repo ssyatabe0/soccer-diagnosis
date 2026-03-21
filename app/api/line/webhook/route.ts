@@ -121,6 +121,9 @@ export async function POST(request: NextRequest) {
     const resBody = await res.text();
     console.log('[wh] reply status:', res.status);
     console.log('[wh] reply body:', resBody);
+    if (res.status === 409) {
+      console.log('[wh] ⚠ 409 = replyToken already used. LINE応答メッセージがONの可能性あり');
+    }
   }
 
   console.log('=== DONE ===');
