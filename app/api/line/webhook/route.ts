@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildLineResultMessage } from '@/lib/line-result-templates';
+import { getReplyByTypeName, ERROR_NO_ID, ERROR_NOT_FOUND, ERROR_UNEXPECTED } from '@/lib/line-result-templates';
 import crypto from 'crypto';
 
 const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN || '';
 const LINE_CHANNEL_SECRET = process.env.LINE_CHANNEL_SECRET || '';
 const LINE_REPLY_URL = 'https://api.line.me/v2/bot/message/reply';
-const LINE_PUSH_URL = 'https://api.line.me/v2/bot/message/push';
 
 function verifySignature(body: string, signature: string): boolean {
   if (!LINE_CHANNEL_SECRET || LINE_CHANNEL_SECRET === 'placeholder') return true;
@@ -13,29 +12,17 @@ function verifySignature(body: string, signature: string): boolean {
   return hash === signature;
 }
 
-async function replyMessage(replyToken: string, text: string): Promise<boolean> {
+async function replyText(replyToken: string, text: string): Promise<boolean> {
+  // 5000文字制限対応: 長文は2通に分割
+  const messages: { type: string; text: string }[] = [];
+  if (text.length <= 5000) {
+    messages.push({ type: 'text', text });
+  } else {
+    messages.push({ type: 'text', text: text.slice(0, 4900) + '\n\n（続き）' });
+    messages.push({ type: 'text', text: text.slice(4900) });
+  }
+
   try {
-    // LINE reply は最大5通、1通あたり5000文字
-    // 長文は分割
-    const chunks: string[] = [];
-    if (text.length <= 5000) {
-      chunks.push(text);
-    } else {
-      const lines = text.split('\n');
-      let current = '';
-      for (const line of lines) {
-        if ((current + '\n' + line).length > 4800) {
-          chunks.push(current);
-          current = line;
-        } else {
-          current = current ? current + '\n' + line : line;
-        }
-      }
-      if (current) chunks.push(current);
-    }
-
-    const messages = chunks.slice(0, 5).map(c => ({ type: 'text', text: c }));
-
     const res = await fetch(LINE_REPLY_URL, {
       method: 'POST',
       headers: {
@@ -44,34 +31,16 @@ async function replyMessage(replyToken: string, text: string): Promise<boolean> 
       },
       body: JSON.stringify({ replyToken, messages }),
     });
-
     if (!res.ok) {
-      console.error('LINE reply failed:', res.status, await res.text());
+      const errText = await res.text();
+      console.error('[webhook] reply failed:', res.status, errText);
       return false;
     }
+    console.log('[webhook] reply success');
     return true;
   } catch (e) {
-    console.error('LINE reply error:', e);
+    console.error('[webhook] reply error:', e);
     return false;
-  }
-}
-
-async function pushMessage(userId: string, text: string): Promise<void> {
-  try {
-    const messages = [{ type: 'text', text: text.slice(0, 5000) }];
-    const res = await fetch(LINE_PUSH_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
-      },
-      body: JSON.stringify({ to: userId, messages }),
-    });
-    if (!res.ok) {
-      console.error('LINE push failed:', res.status, await res.text());
-    }
-  } catch (e) {
-    console.error('LINE push error:', e);
   }
 }
 
@@ -82,50 +51,46 @@ export async function POST(request: NextRequest) {
     // 署名検証
     const signature = request.headers.get('x-line-signature') || '';
     if (!verifySignature(rawBody, signature)) {
-      console.error('LINE webhook: invalid signature');
+      console.error('[webhook] invalid signature');
       return NextResponse.json({ status: 'ok' });
     }
 
     const body = JSON.parse(rawBody);
     const events = body.events || [];
-
-    console.log('[webhook] received:', JSON.stringify({ eventCount: events.length }));
+    console.log('[webhook] received events:', events.length);
 
     for (const event of events) {
+      // テキストメッセージのみ処理
       if (event.type !== 'message' || event.message?.type !== 'text') continue;
 
       const text = event.message.text || '';
       const replyToken = event.replyToken;
       const userId = event.source?.userId;
 
-      console.log('[webhook] message text:', text);
+      console.log('[webhook] message:', text);
+      console.log('[webhook] userId:', userId);
 
-      // resultId を抽出
-      const match = text.match(/resultId=([a-f0-9-]+)/i);
-      if (!match) {
-        console.log('[webhook] no resultId found in message, skipping');
+      // resultId を抽出（ID: xxx または 診断結果ID: xxx）
+      const idMatch = text.match(/(?:診断結果)?ID[:：]\s*([a-f0-9-]+)/i);
+      if (!idMatch) {
+        console.log('[webhook] no resultId found');
+        await replyText(replyToken, ERROR_NO_ID);
         continue;
       }
 
-      const resultId = match[1];
+      const resultId = idMatch[1];
       console.log('[webhook] resultId:', resultId);
 
-      // typeName を本文から抽出（第一優先）
+      // Supabase から diagnosis_results を検索
       let typeName = '';
-      const typeMatch = text.match(/type=(.+?)(\n|$)/);
-      if (typeMatch) {
-        typeName = typeMatch[1].trim();
-      }
-
-      // Supabase から補完（typeName が空 or DB確認）
       try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '');
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
         if (supabaseUrl && supabaseKey) {
-          console.log('[webhook] querying Supabase for resultId:', resultId);
+          console.log('[webhook] querying DB for:', resultId);
           const res = await fetch(
-            `${supabaseUrl}/rest/v1/diagnosis_results?id=eq.${resultId}&select=*`,
+            `${supabaseUrl}/rest/v1/diagnosis_results?id=eq.${resultId}&select=type_name`,
             {
               headers: {
                 apikey: supabaseKey,
@@ -134,47 +99,46 @@ export async function POST(request: NextRequest) {
             }
           );
           const data = await res.json();
-          console.log('[webhook] Supabase result:', JSON.stringify(data));
+          console.log('[webhook] DB result:', JSON.stringify(data));
 
           if (data?.[0]?.type_name) {
-            if (!typeName) typeName = data[0].type_name;
-            console.log('[webhook] DB typeName:', data[0].type_name);
-          } else {
-            console.log('[webhook] resultId NOT FOUND in DB, using message typeName:', typeName);
+            typeName = data[0].type_name;
           }
-        } else {
-          console.log('[webhook] Supabase not configured');
         }
       } catch (e) {
-        console.error('[webhook] Supabase fetch error:', e);
+        console.error('[webhook] DB error:', e);
       }
 
+      // DBから取れなかった場合、メッセージ本文の「タイプ:」から取得
       if (!typeName) {
-        typeName = '不明なタイプ';
-        console.log('[webhook] typeName fallback to:', typeName);
+        const typeMatch = text.match(/タイプ[:：]\s*(.+?)(\n|$)/);
+        if (typeMatch) {
+          typeName = typeMatch[1].trim();
+          console.log('[webhook] typeName from message:', typeName);
+        }
+      }
+
+      // typeName が取れない場合
+      if (!typeName) {
+        console.log('[webhook] typeName not found, sending NOT_FOUND');
+        await replyText(replyToken, ERROR_NOT_FOUND);
+        continue;
       }
 
       console.log('[webhook] final typeName:', typeName);
 
-      // テンプレートからメッセージ生成
-      const messageText = buildLineResultMessage(typeName);
+      // テンプレートから返信文を取得して返信
+      const replyBody = getReplyByTypeName(typeName);
+      const replied = await replyText(replyToken, replyBody);
 
-      // reply を試行、失敗なら push
-      const replied = await replyMessage(replyToken, messageText);
-      if (replied) {
-        console.log('[webhook] reply success:', resultId, typeName);
-      } else {
-        console.log('[webhook] reply failed, trying push to:', userId);
-        if (userId) {
-          await pushMessage(userId, messageText);
-          console.log('[webhook] push sent:', resultId, userId);
-        }
+      if (!replied) {
+        console.error('[webhook] reply failed for:', resultId, typeName);
       }
 
       // Supabase に line_user_id を紐付け
       try {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/+$/, '');
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
+        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
         if (supabaseUrl && supabaseKey && userId) {
           await fetch(
@@ -193,17 +157,16 @@ export async function POST(request: NextRequest) {
               }),
             }
           );
+          console.log('[webhook] user updated:', resultId, userId);
         }
       } catch (e) {
-        console.error('Supabase update error:', e);
+        console.error('[webhook] user update error:', e);
       }
-
-      console.log('[webhook] done:', resultId, typeName, userId);
     }
 
     return NextResponse.json({ status: 'ok' });
   } catch (e) {
-    console.error('webhook error:', e);
+    console.error('[webhook] fatal error:', e);
     return NextResponse.json({ status: 'ok' });
   }
 }
