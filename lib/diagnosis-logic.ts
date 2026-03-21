@@ -71,7 +71,7 @@ export function getLaneDescription(lane: Lane): { label: string; cta: string; ur
       return {
         label: '無料フォローコース',
         cta: 'まずはLINEで無料アドバイスを受け取る',
-        url: 'https://lin.ee/q7xbzrk',
+        url: 'https://lin.ee/RfP779J',
       };
     case 'B':
       return {

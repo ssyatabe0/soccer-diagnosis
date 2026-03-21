@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { DiagnosisResult } from '@/lib/types';
 
-const LINE_URL = 'https://lin.ee/QJf5JPiP';
+const LINE_URL = 'https://lin.ee/RfP779J';
 
 export default function LineCTA({ result }: { result: DiagnosisResult }) {
   const [copied, setCopied] = useState(false);
