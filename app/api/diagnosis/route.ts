@@ -14,6 +14,9 @@ export async function POST(request: NextRequest) {
     const id = uuidv4();
     const result = calculateDiagnosis(id, answers);
     const supabase = getServiceSupabase();
+    if (!supabase) {
+      return NextResponse.json({ error: 'DB未設定' }, { status: 500 });
+    }
 
     const { data, error: insertError } = await supabase
       .from('diagnosis_results')

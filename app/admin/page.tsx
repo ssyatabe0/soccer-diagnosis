@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 type Stats = {
   totalUsers: number;
@@ -20,6 +20,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function loadStats() {
       try {
+        const supabase = getSupabase();
+        if (!supabase) throw new Error('Supabase not configured');
         const { data: users, error: err } = await supabase
           .from('users')
           .select('*');

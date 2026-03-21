@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { DIAGNOSIS_TYPES } from '@/lib/constants';
 
 type ResultRow = {
@@ -22,6 +22,8 @@ export default function AdminResultsPage() {
   useEffect(() => {
     async function load() {
       try {
+        const supabase = getSupabase();
+        if (!supabase) throw new Error('Supabase not configured');
         const { data, error: err } = await supabase
           .from('diagnosis_results')
           .select('*')

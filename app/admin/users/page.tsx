@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 type UserRow = {
   id: string;
@@ -27,6 +27,8 @@ export default function AdminUsersPage() {
   useEffect(() => {
     async function load() {
       try {
+        const supabase = getSupabase();
+        if (!supabase) throw new Error('Supabase not configured');
         const { data, error: err } = await supabase
           .from('users')
           .select('*')
