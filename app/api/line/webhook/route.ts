@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'
 
 const CTA = `
 さらに具体的な改善方法は
@@ -12,26 +12,82 @@ https://wp.me/P6mCSs-8Zp
 診断と解決は
 https://soccer-kateikyousi.com/
 お気軽にご相談ください。
-`;
+`
 
-function extractTypeFromFixedPattern(text: string): string | null {
+function extractType(text: string): string | null {
   const normalized = text
     .replace(/\r/g, '')
-    .replace(/：/g, ':');
+    .replace(/\n/g, '')
+    .replace(/\s/g, '')
+    .replace(/　/g, '')
+    .replace(/：/g, ':')
 
-  const marker = 'タイプ:';
-  const idx = normalized.indexOf(marker);
-  if (idx === -1) return null;
+  const patterns: Array<{ keys: string[]; type: string }> = [
+    {
+      keys: ['技術あるのに出せない温存型', '温存型'],
+      type: '技術あるのに出せない温存型',
+    },
+    {
+      keys: ['最初の一歩が遅れる受け身型', '受け身型'],
+      type: '最初の一歩が遅れる受け身型',
+    },
+    {
+      keys: ['ボール受ける前で負ける後手型', '後手型'],
+      type: 'ボール受ける前で負ける後手型',
+    },
+    {
+      keys: ['周りに合わせすぎる遠慮型', '遠慮型'],
+      type: '周りに合わせすぎる遠慮型',
+    },
+    {
+      keys: ['先に急ぎすぎる突進型', '突進型'],
+      type: '先に急ぎすぎる突進型',
+    },
+    {
+      keys: ['ミスを恐れて選択が減る慎重型', '慎重型'],
+      type: 'ミスを恐れて選択が減る慎重型',
+    },
+    {
+      keys: ['試合で消えやすい慎重派型', '慎重派型'],
+      type: '試合で消えやすい慎重派型',
+    },
+    {
+      keys: ['練習と試合で別人になる分離型', '分離型'],
+      type: '練習と試合で別人になる分離型',
+    },
+    {
+      keys: ['1対1で力を隠す安全運転型', '安全運転型'],
+      type: '1対1で力を隠す安全運転型',
+    },
+    {
+      keys: ['見えてるのに出せない準備不足型', '準備不足型'],
+      type: '見えてるのに出せない準備不足型',
+    },
+    {
+      keys: ['ボール触れは良いのに触れない待機型', '待機型'],
+      type: 'ボール触れは良いのに触れない待機型',
+    },
+    {
+      keys: ['頭ではわかってるのに体が合わない思考先行型', '思考先行型'],
+      type: '頭ではわかってるのに体が合わない思考先行型',
+    },
+  ]
 
-  const typeRaw = normalized.slice(idx + marker.length).trim();
-  if (!typeRaw) return null;
+  for (const row of patterns) {
+    for (const key of row.keys) {
+      if (normalized.includes(key.replace(/\s/g, ''))) {
+        return row.type
+      }
+    }
+  }
 
-  return typeRaw;
+  return null
 }
 
 function buildReply(type: string): string {
-  if (type === '技術あるのに出せない温存型') {
-    return `診断結果の続きをお伝えします。
+  switch (type) {
+    case '技術あるのに出せない温存型':
+      return `診断結果の続きです。
 
 あなたは「技術はあるのに試合で出せない状態」です。
 
@@ -48,11 +104,10 @@ function buildReply(type: string): string {
 
 この順番に変えるだけで一気に変わります。
 ここは一番伸びやすいゾーンです。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === '最初の一歩が遅れる受け身型') {
-    return `診断結果の続きをお伝えします。
+    case '最初の一歩が遅れる受け身型':
+      return `診断結果の続きです。
 
 このタイプは「待ってしまう」ことが原因です。
 
@@ -67,11 +122,10 @@ ${CTA}`;
 ▶次のプレーを先に決める
 
 これができるだけで別人になります。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === 'ボール受ける前で負ける後手型') {
-    return `診断結果の続きをお伝えします。
+    case 'ボール受ける前で負ける後手型':
+      return `診断結果の続きです。
 
 このタイプは「受ける前の準備」で負けています。
 
@@ -86,11 +140,10 @@ ${CTA}`;
 ▶受ける前に次を決める
 
 受ける前が変わるとプレー全体が変わります。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === '周りに合わせすぎる遠慮型') {
-    return `診断結果の続きをお伝えします。
+    case '周りに合わせすぎる遠慮型':
+      return `診断結果の続きです。
 
 このタイプは「周りに合わせすぎる」ことが原因です。
 
@@ -106,11 +159,10 @@ ${CTA}`;
 
 協調性は武器です。
 あとは自分で行く場面を決めれば伸びます。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === '先に急ぎすぎる突進型') {
-    return `診断結果の続きをお伝えします。
+    case '先に急ぎすぎる突進型':
+      return `診断結果の続きです。
 
 このタイプは「改善ポイントが明確」なので、ここから一気に変わります。
 
@@ -125,11 +177,10 @@ ${CTA}`;
 ▶状況を見る
 
 これだけでプレーの質が上がります。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === 'ミスを恐れて選択が減る慎重型') {
-    return `診断結果の続きをお伝えします。
+    case 'ミスを恐れて選択が減る慎重型':
+      return `診断結果の続きです。
 
 このタイプは「ミスを恐れすぎる」ことで選択が減っています。
 
@@ -145,11 +196,10 @@ ${CTA}`;
 
 慎重さは強みです。
 使い方を変えるだけで良さが出ます。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === '試合で消えやすい慎重派型') {
-    return `診断結果の続きをお伝えします。
+    case '試合で消えやすい慎重派型':
+      return `診断結果の続きです。
 
 このタイプは「試合で存在感が消えやすい」状態です。
 
@@ -164,11 +214,10 @@ ${CTA}`;
 ▶消える前に1回行く
 
 試合の入り方を変えるだけで印象は大きく変わります。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === '練習と試合で別人になる分離型') {
-    return `診断結果の続きをお伝えします。
+    case '練習と試合で別人になる分離型':
+      return `診断結果の続きです。
 
 このタイプは「練習と試合で別人」になっています。
 
@@ -183,11 +232,10 @@ ${CTA}`;
 ▶練習から試合想定でやる
 
 再現の設計を入れるだけで試合でも出せます。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === '1対1で力を隠す安全運転型') {
-    return `診断結果の続きをお伝えします。
+    case '1対1で力を隠す安全運転型':
+      return `診断結果の続きです。
 
 このタイプは「1対1で力を隠してしまう」状態です。
 
@@ -202,11 +250,10 @@ ${CTA}`;
 ▶安全の中に勝負を入れる
 
 安全運転を少し変えるだけで武器が見えます。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === '見えてるのに出せない準備不足型') {
-    return `診断結果の続きをお伝えします。
+    case '見えてるのに出せない準備不足型':
+      return `診断結果の続きです。
 
 このタイプは「見えているのに出せない」状態です。
 
@@ -222,11 +269,10 @@ ${CTA}`;
 
 見えているなら、あとは準備だけです。
 ここは伸びます。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === 'ボール触れは良いのに触れない待機型') {
-    return `診断結果の続きをお伝えします。
+    case 'ボール触れは良いのに触れない待機型':
+      return `診断結果の続きです。
 
 このタイプは「触れれば良いのに、触る前で止まる」状態です。
 
@@ -241,11 +287,10 @@ ${CTA}`;
 ▶待つより先に入る
 
 触る回数が増えるだけで、良さは自然に出ます。
-${CTA}`;
-  }
+${CTA}`
 
-  if (type === '頭ではわかってるのに体が合わない思考先行型') {
-    return `診断結果の続きをお伝えします。
+    case '頭ではわかってるのに体が合わない思考先行型':
+      return `診断結果の続きです。
 
 このタイプは「頭ではわかっているのに、体が合っていない」状態です。
 
@@ -261,32 +306,33 @@ ${CTA}`;
 
 頭の理解は十分です。
 あとは体に落とすだけです。
-${CTA}`;
+${CTA}`
+
+    default:
+      return `タイプがうまく取得できません。
+
+「突進型」など一言送ってください。`
   }
-
-  return `タイプがうまく取得できません。
-
-「突進型」など一言送ってください。`;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const events = body.events || [];
+    const body = await req.json()
+    const events = body.events || []
 
     for (const event of events) {
-      if (event.type !== 'message') continue;
-      if (event.message?.type !== 'text') continue;
+      if (event.type !== 'message') continue
+      if (event.message?.type !== 'text') continue
 
-      const text = event.message.text || '';
-      const replyToken = event.replyToken;
+      const text = event.message.text || ''
+      const replyToken = event.replyToken
 
-      const type = extractTypeFromFixedPattern(text);
+      const type = extractType(text)
       const replyText = type
         ? buildReply(type)
         : `タイプがうまく取得できません。
 
-「突進型」など一言送ってください。`;
+「突進型」など一言送ってください。`
 
       await fetch('https://api.line.me/v2/bot/message/reply', {
         method: 'POST',
@@ -298,12 +344,12 @@ export async function POST(req: NextRequest) {
           replyToken,
           messages: [{ type: 'text', text: replyText }],
         }),
-      });
+      })
     }
 
-    return NextResponse.json({ status: 'ok' });
+    return NextResponse.json({ status: 'ok' })
   } catch (e) {
-    console.error(e);
-    return NextResponse.json({ error: 'error' }, { status: 500 });
+    console.error(e)
+    return NextResponse.json({ error: 'error' }, { status: 500 })
   }
 }
