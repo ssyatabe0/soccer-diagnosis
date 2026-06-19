@@ -737,3 +737,98 @@ UNION ALL
 SELECT *
 FROM relationship_candidates
 WHERE candidate_type IS NOT NULL;
+
+-- Phase6: 契約書テンプレート・PDF生成・送付準備管理
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS address TEXT,
+  ADD COLUMN IF NOT EXISTS payment_method TEXT;
+
+CREATE TABLE IF NOT EXISTS contract_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_key TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  service_type TEXT NOT NULL CHECK (service_type IN ('yatabe_private_lesson', 'staff_private_lesson', 'kids_school', 'ashiwaza_dribble', 'sysc', 'online_diagnosis', 'overseas', 'common', 'unknown')),
+  document_type TEXT NOT NULL CHECK (document_type IN ('contract', 'terms', 'consent', 'privacy', 'photo_video', 'other')),
+  body TEXT,
+  required_fields TEXT[] DEFAULT '{}',
+  cloudsign_ready BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO contract_templates (template_key, name, service_type, document_type, body, required_fields, notes)
+VALUES
+  ('yatabe_private_lesson_contract', '谷田部個人レッスン契約書', 'yatabe_private_lesson', 'contract', '個人レッスンの内容、料金、回数券、有効期限、キャンセル規定を確認します。', ARRAY['parent_name','child_name','address','phone','email','start_date','amount','payment_method'], 'LightプランではPDF生成・送付準備まで'),
+  ('staff_private_lesson_contract', 'スタッフ個人レッスン契約書', 'staff_private_lesson', 'contract', 'スタッフ担当レッスンの提供条件、担当者、料金、回数券、有効期限を確認します。', ARRAY['parent_name','child_name','address','phone','email','owner_name','start_date','amount','payment_method'], '担当スタッフ確認が必要'),
+  ('kids_school_terms', 'キッズスクール利用規約', 'kids_school', 'terms', 'キッズスクールの在籍、月謝、休会、退会、参加ルールを確認します。', ARRAY['parent_name','child_name','address','phone','email','start_date','monthly_fee','payment_method'], '月謝管理用'),
+  ('ashiwaza_terms', '足技塾利用規約', 'ashiwaza_dribble', 'terms', '足技塾・ドリブル塾の通い放題、イベント、試合参加条件を確認します。', ARRAY['parent_name','child_name','address','phone','email','start_date','monthly_fee','payment_method'], '足技塾向け'),
+  ('sysc_membership_contract', 'SYSC入会契約書', 'sysc', 'contract', 'SYSCのチーム活動、練習、試合、スカウト会、セレクションに関する入会条件を確認します。', ARRAY['parent_name','child_name','address','phone','email','start_date','monthly_fee','payment_method'], 'チーム活動向け'),
+  ('online_diagnosis_consent', 'オンライン診断同意書', 'online_diagnosis', 'consent', 'オンライン診断の実施内容、提出動画、診断結果の扱いを確認します。', ARRAY['parent_name','child_name','email','start_date','amount','payment_method'], 'オンライン完結'),
+  ('overseas_contract', '海外向け契約書', 'overseas', 'contract', '海外在住者・来日者向けサービスの提供範囲、時差、支払、キャンセル条件を確認します。', ARRAY['parent_name','child_name','email','start_date','amount','payment_method'], '英語版は将来追加'),
+  ('photo_video_consent', '写真動画利用同意書', 'common', 'photo_video', '写真・動画の撮影、SNS・サイト掲載、広告利用可否を確認します。', ARRAY['parent_name','child_name','email'], '全サービス共通'),
+  ('privacy_consent', '個人情報同意書', 'common', 'privacy', '問い合わせ、契約、レッスン、連絡に必要な個人情報の取り扱いを確認します。', ARRAY['parent_name','child_name','email'], '全サービス共通')
+ON CONFLICT (template_key) DO UPDATE SET
+  name = EXCLUDED.name,
+  service_type = EXCLUDED.service_type,
+  document_type = EXCLUDED.document_type,
+  body = EXCLUDED.body,
+  required_fields = EXCLUDED.required_fields,
+  notes = EXCLUDED.notes,
+  updated_at = NOW();
+
+CREATE TABLE IF NOT EXISTS contract_documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL,
+  template_id UUID REFERENCES contract_templates(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  service_type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'created', 'ready_to_send', 'sent', 'checking', 'waiting_signature', 'signed', 'cancelled', 'expired')),
+  file_name TEXT,
+  content_type TEXT DEFAULT 'application/pdf',
+  pdf_base64 TEXT,
+  field_snapshot JSONB DEFAULT '{}'::jsonb,
+  ai_suggestion TEXT,
+  cloudsign_document_id TEXT,
+  cloudsign_status TEXT,
+  ready_at TIMESTAMPTZ,
+  sent_at TIMESTAMPTZ,
+  signed_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_contract_templates_service ON contract_templates(service_type, is_active);
+CREATE INDEX IF NOT EXISTS idx_contract_documents_customer ON contract_documents(customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_contract_documents_status ON contract_documents(status, created_at DESC);
+
+ALTER TABLE contract_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contract_documents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role full access contract_templates" ON contract_templates;
+CREATE POLICY "Service role full access contract_templates"
+  ON contract_templates FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access contract_documents" ON contract_documents;
+CREATE POLICY "Service role full access contract_documents"
+  ON contract_documents FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP VIEW IF EXISTS ai_secretary_contract_documents;
+CREATE OR REPLACE VIEW ai_secretary_contract_documents AS
+SELECT
+  cd.*,
+  ct.template_key,
+  ct.name AS template_name,
+  ct.document_type,
+  c.full_name,
+  c.parent_name,
+  c.child_name,
+  c.email,
+  c.phone
+FROM contract_documents cd
+LEFT JOIN contract_templates ct ON ct.id = cd.template_id
+LEFT JOIN customers c ON c.id = cd.customer_id;

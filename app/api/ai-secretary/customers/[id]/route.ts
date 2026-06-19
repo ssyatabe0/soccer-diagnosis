@@ -78,7 +78,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   const { id } = await params
   const body = await request.json().catch(() => null)
-  const allowed = ['full_name', 'parent_name', 'child_name', 'email', 'phone', 'service_type', 'status', 'grade', 'region', 'team_name', 'inquiry_date', 'trial_date', 'enrolled_date', 'withdrawn_date', 'owner_name', 'next_reservation_at', 'memo']
+  const allowed = ['full_name', 'parent_name', 'child_name', 'email', 'phone', 'address', 'service_type', 'status', 'grade', 'region', 'team_name', 'inquiry_date', 'trial_date', 'enrolled_date', 'withdrawn_date', 'owner_name', 'next_reservation_at', 'payment_method', 'memo']
   const updates: Record<string, string | null> = {}
 
   for (const key of allowed) {

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { CustomerEditor } from '@/components/ai-secretary/CustomerEditor'
 import { CustomerRevenueActions } from '@/components/ai-secretary/CustomerRevenueActions'
 import { ProfileGenerateButton } from '@/components/ai-secretary/ProfileGenerateButton'
+import { ContractDocumentActions } from '@/components/ai-secretary/ContractDocumentActions'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -13,6 +14,7 @@ type Customer = {
   child_name: string | null
   email: string | null
   phone: string | null
+  address: string | null
   service_type: string
   status: string
   grade: string | null
@@ -24,6 +26,7 @@ type Customer = {
   withdrawn_date: string | null
   owner_name: string | null
   next_reservation_at: string | null
+  payment_method: string | null
   memo: string | null
   first_contact_at: string | null
   last_contact_at: string | null
@@ -104,6 +107,23 @@ type Product = {
   monthly_fee: number | null
 }
 
+type ContractTemplate = {
+  id: string
+  name: string
+  service_type: string
+  document_type: string
+}
+
+type ContractDocument = {
+  id: string
+  title: string
+  status: string
+  file_name: string | null
+  ai_suggestion: string | null
+  notes: string | null
+  created_at: string
+}
+
 type AiProfile = {
   overview: string | null
   pain_points: string | null
@@ -148,6 +168,8 @@ async function loadCustomer(id: string) {
       followTasks: [] as FollowTask[],
       salesCandidates: [] as SalesCandidate[],
       products: [] as Product[],
+      contractTemplates: [] as ContractTemplate[],
+      contractDocuments: [] as ContractDocument[],
       aiProfile: null as AiProfile | null,
       error: 'supabase_not_configured',
     }
@@ -163,6 +185,8 @@ async function loadCustomer(id: string) {
     { data: salesCandidates, error: salesCandidatesError },
     { data: products, error: productsError },
     { data: aiProfile, error: aiProfileError },
+    { data: contractTemplates, error: contractTemplatesError },
+    { data: contractDocuments, error: contractDocumentsError },
   ] = await Promise.all([
     supabase.from('customers').select('*').eq('id', id).single(),
     supabase.from('customer_timeline_events').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
@@ -173,9 +197,11 @@ async function loadCustomer(id: string) {
     supabase.from('ai_secretary_sales_candidates').select('*').eq('customer_id', id).limit(100),
     supabase.from('products').select('id,name,product_type,ticket_count,price,monthly_fee').eq('is_active', true).order('service_type', { ascending: true }),
     supabase.from('customer_ai_profiles').select('*').eq('customer_id', id).maybeSingle(),
+    supabase.from('contract_templates').select('id,name,service_type,document_type').eq('is_active', true).order('service_type', { ascending: true }),
+    supabase.from('contract_documents').select('id,title,status,file_name,ai_suggestion,notes,created_at').eq('customer_id', id).order('created_at', { ascending: false }).limit(100),
   ])
 
-  const error = customerError?.message || timelineError?.message || linesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || aiProfileError?.message || null
+  const error = customerError?.message || timelineError?.message || linesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || aiProfileError?.message || contractTemplatesError?.message || contractDocumentsError?.message || null
   return {
     customer: customer as Customer | null,
     timeline: (timeline || []) as TimelineEvent[],
@@ -185,6 +211,8 @@ async function loadCustomer(id: string) {
     followTasks: (followTasks || []) as FollowTask[],
     salesCandidates: (salesCandidates || []) as SalesCandidate[],
     products: (products || []) as Product[],
+    contractTemplates: (contractTemplates || []) as ContractTemplate[],
+    contractDocuments: (contractDocuments || []) as ContractDocument[],
     aiProfile: aiProfile as AiProfile | null,
     error,
   }
@@ -244,7 +272,7 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
     return <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900">閲覧トークンが必要です。</div>
   }
 
-  const { customer, timeline, lines, contracts, ticketUsage, followTasks, salesCandidates, products, aiProfile, error } = await loadCustomer(id)
+  const { customer, timeline, lines, contracts, ticketUsage, followTasks, salesCandidates, products, contractTemplates, contractDocuments, aiProfile, error } = await loadCustomer(id)
 
   if (error || !customer) {
     return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">顧客読み取りエラー: {error || 'not_found'}</div>
@@ -262,6 +290,8 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
       </div>
 
       <CustomerEditor customer={customer} token={token} />
+
+      <ContractDocumentActions customerId={customer.id} token={token} templates={contractTemplates} documents={contractDocuments} />
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
