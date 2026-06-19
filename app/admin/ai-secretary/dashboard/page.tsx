@@ -79,6 +79,18 @@ type CalendarItem = {
   ticket_usage_candidate: boolean | null
 }
 
+type UsageCandidate = {
+  id: number
+  customer_id: string | null
+  lesson_title: string | null
+  candidate_date: string
+  suggested_used_count: number
+  full_name: string | null
+  parent_name: string | null
+  child_name: string | null
+  ai_reason: string | null
+}
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -128,6 +140,7 @@ async function loadDashboard() {
     salesResult,
     followResult,
     calendarResult,
+    usageCandidateResult,
   ] = await Promise.all([
     supabase.from('ai_secretary_line_inbox').select('*').eq('status', 'needs_review').order('occurred_at', { ascending: false }).limit(80),
     supabase.from('gmail_sync_sources').select('*').eq('needs_reply', true).eq('status', 'needs_review').order('occurred_at', { ascending: false, nullsFirst: false }).limit(80),
@@ -135,9 +148,10 @@ async function loadDashboard() {
     supabase.from('ai_secretary_sales_candidates').select('*').eq('expected_month', month).limit(300),
     supabase.from('follow_tasks').select('*, customers(full_name,parent_name,child_name,service_type,status)').eq('status', 'open').lte('due_date', today).order('due_date', { ascending: true }).limit(120),
     supabase.from('calendar_sync_sources').select('*').gte('starts_at', `${today}T00:00:00+09:00`).lt('starts_at', `${tomorrow}T00:00:00+09:00`).order('starts_at', { ascending: true }).limit(80),
+    supabase.from('ai_secretary_calendar_usage_candidates').select('*').eq('status', 'pending').order('candidate_date', { ascending: false }).limit(80),
   ])
 
-  const error = lineResult.error?.message || gmailResult.error?.message || customersResult.error?.message || salesResult.error?.message || followResult.error?.message || calendarResult.error?.message || null
+  const error = lineResult.error?.message || gmailResult.error?.message || customersResult.error?.message || salesResult.error?.message || followResult.error?.message || calendarResult.error?.message || usageCandidateResult.error?.message || null
 
   return {
     error,
@@ -149,6 +163,7 @@ async function loadDashboard() {
     sales: (salesResult.data || []) as SalesCandidate[],
     followTasks: (followResult.data || []) as FollowTask[],
     calendar: (calendarResult.data || []) as CalendarItem[],
+    usageCandidates: (usageCandidateResult.data || []) as UsageCandidate[],
   }
 }
 
@@ -245,6 +260,7 @@ export default async function AiSecretaryDashboardPage({ searchParams }: { searc
   const sales = loaded.sales || []
   const followTasks = loaded.followTasks || []
   const calendar = loaded.calendar || []
+  const usageCandidates = loaded.usageCandidates || []
   const trialScheduling = customers.filter((customer) => customer.status === 'trial_scheduling')
   const trialBooked = customers.filter((customer) => customer.status === 'trial_booked')
   const trialDone = customers.filter((customer) => customer.status === 'trial_done')
@@ -265,6 +281,7 @@ export default async function AiSecretaryDashboardPage({ searchParams }: { searc
         </div>
         <div className="flex flex-wrap gap-2">
           <Link href={`/admin/ai-secretary/revenue?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">売上候補</Link>
+          <Link href={`/admin/ai-secretary/integrations?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">Gmail/カレンダー</Link>
           <Link href={`/admin/ai-secretary/customers?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">顧客検索</Link>
           <Link href={`/admin/ai-secretary/search?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">自然文検索</Link>
         </div>
@@ -274,7 +291,7 @@ export default async function AiSecretaryDashboardPage({ searchParams }: { searc
         <Kpi label="今日返すLINE" value={lines.length} tone="red" />
         <Kpi label="未返信Gmail" value={gmail.length} tone="yellow" />
         <Kpi label="今月売上候補" value={sales.length} tone="green" />
-        <Kpi label="今日フォロー" value={todayFollow.length} tone="blue" />
+        <Kpi label="回数券消化候補" value={usageCandidates.length} tone="blue" />
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
@@ -332,6 +349,25 @@ export default async function AiSecretaryDashboardPage({ searchParams }: { searc
       <SalesGroup title="今月売上候補・再提案候補" token={token} items={sales} />
       <SalesGroup title="今月失効候補" token={token} items={expiring} />
       <FollowGroup title="今月フォロー対象" token={token} items={todayFollow} />
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-black text-gray-900">回数券消化候補（確認待ち）</h3>
+        <div className="mt-4 space-y-3">
+          {usageCandidates.map((candidate) => (
+            <Link key={candidate.id} href={candidate.customer_id ? `/admin/ai-secretary/customers/${candidate.customer_id}?token=${encodeURIComponent(token)}` : `/admin/ai-secretary/integrations?token=${encodeURIComponent(token)}`} className="block rounded-xl border border-gray-100 bg-gray-50 p-4 hover:border-green-300">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-700">確認待ち</span>
+                <span className="text-xs font-bold text-gray-500">{candidate.candidate_date}</span>
+                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-700">{candidate.suggested_used_count}回候補</span>
+              </div>
+              <p className="mt-3 font-black text-gray-900">{nameOf(candidate)}</p>
+              <p className="mt-1 text-sm text-gray-700">{candidate.lesson_title || 'カレンダー予定'}</p>
+              {candidate.ai_reason && <p className="mt-2 text-sm leading-6 text-gray-700">{candidate.ai_reason}</p>}
+            </Link>
+          ))}
+          {usageCandidates.length === 0 && <p className="text-sm text-gray-500">確認待ちの消化候補はありません。</p>}
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <h3 className="text-lg font-black text-gray-900">今日のGoogleカレンダー予定</h3>

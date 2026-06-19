@@ -832,3 +832,50 @@ SELECT
 FROM contract_documents cd
 LEFT JOIN contract_templates ct ON ct.id = cd.template_id
 LEFT JOIN customers c ON c.id = cd.customer_id;
+
+-- Phase7: Gmail/Googleカレンダー統合・回数券消化候補
+CREATE TABLE IF NOT EXISTS calendar_ticket_usage_candidates (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL,
+  calendar_source_id BIGINT REFERENCES calendar_sync_sources(id) ON DELETE CASCADE,
+  candidate_date DATE NOT NULL,
+  lesson_title TEXT,
+  suggested_used_count INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'dismissed')),
+  ai_reason TEXT,
+  confirmed_usage_id BIGINT REFERENCES ticket_usage(id) ON DELETE SET NULL,
+  confirmed_at TIMESTAMPTZ,
+  dismissed_at TIMESTAMPTZ,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(calendar_source_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_calendar_ticket_usage_candidates_status ON calendar_ticket_usage_candidates(status, candidate_date DESC);
+CREATE INDEX IF NOT EXISTS idx_calendar_ticket_usage_candidates_customer ON calendar_ticket_usage_candidates(customer_id, candidate_date DESC);
+
+ALTER TABLE calendar_ticket_usage_candidates ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role full access calendar_ticket_usage_candidates" ON calendar_ticket_usage_candidates;
+CREATE POLICY "Service role full access calendar_ticket_usage_candidates"
+  ON calendar_ticket_usage_candidates FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP VIEW IF EXISTS ai_secretary_calendar_usage_candidates;
+CREATE OR REPLACE VIEW ai_secretary_calendar_usage_candidates AS
+SELECT
+  ctu.*,
+  c.full_name,
+  c.parent_name,
+  c.child_name,
+  c.service_type,
+  ac.product_name,
+  ac.remaining_count,
+  ac.effective_valid_until,
+  cs.title AS calendar_title,
+  cs.starts_at,
+  cs.ai_summary AS calendar_summary
+FROM calendar_ticket_usage_candidates ctu
+LEFT JOIN customers c ON c.id = ctu.customer_id
+LEFT JOIN ai_secretary_contracts ac ON ac.id = ctu.contract_id
+LEFT JOIN calendar_sync_sources cs ON cs.id = ctu.calendar_source_id;

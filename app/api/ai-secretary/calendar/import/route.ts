@@ -65,6 +65,31 @@ export async function POST(request: NextRequest) {
         occurred_at: startsAt,
       })
       if (status === 'scheduled') await supabase.from('customers').update({ next_reservation_at: startsAt, updated_at: new Date().toISOString() }).eq('id', customerId)
+      if (ticketUsageCandidate) {
+        const { data: contracts } = await supabase
+          .from('ai_secretary_contracts')
+          .select('id,product_name,remaining_count,effective_valid_until')
+          .eq('customer_id', customerId)
+          .in('status', ['active', 'paused'])
+          .gt('remaining_count', 0)
+          .order('effective_valid_until', { ascending: true, nullsFirst: false })
+          .limit(1)
+
+        const contract = contracts?.[0]
+        await supabase.from('calendar_ticket_usage_candidates').upsert({
+          customer_id: customerId,
+          contract_id: contract?.id || null,
+          calendar_source_id: data.id,
+          candidate_date: startsAt.slice(0, 10),
+          lesson_title: event.title || 'カレンダー連携レッスン',
+          suggested_used_count: 1,
+          status: 'pending',
+          ai_reason: contract
+            ? `Googleカレンダーの実施済み予定から回数券1回消化候補を作成しました。対象契約: ${contract.product_name || '契約'} / 残${contract.remaining_count ?? '-'}回`
+            : 'Googleカレンダーの実施済み予定から回数券消化候補を作成しました。紐付く有効契約の確認が必要です。',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'calendar_source_id' })
+      }
     }
     imported.push(data)
   }

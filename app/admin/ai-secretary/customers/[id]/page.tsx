@@ -4,6 +4,7 @@ import { CustomerEditor } from '@/components/ai-secretary/CustomerEditor'
 import { CustomerRevenueActions } from '@/components/ai-secretary/CustomerRevenueActions'
 import { ProfileGenerateButton } from '@/components/ai-secretary/ProfileGenerateButton'
 import { ContractDocumentActions } from '@/components/ai-secretary/ContractDocumentActions'
+import { CalendarUsageCandidateActions } from '@/components/ai-secretary/CalendarUsageCandidateActions'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -50,6 +51,38 @@ type LineMessage = {
   ai_reply_draft: string | null
   intent: string | null
   occurred_at: string
+}
+
+type GmailSource = {
+  id: number
+  from_email: string | null
+  subject: string | null
+  snippet: string | null
+  ai_summary: string | null
+  ai_reply_draft: string | null
+  needs_reply: boolean | null
+  status: string | null
+  occurred_at: string | null
+}
+
+type CalendarSource = {
+  id: number
+  title: string | null
+  starts_at: string | null
+  status: string | null
+  ticket_usage_candidate: boolean | null
+  ai_summary: string | null
+}
+
+type UsageCandidate = {
+  id: number
+  candidate_date: string
+  lesson_title: string | null
+  suggested_used_count: number
+  status: string
+  ai_reason: string | null
+  product_name: string | null
+  remaining_count: number | null
 }
 
 type Contract = {
@@ -163,6 +196,9 @@ async function loadCustomer(id: string) {
       customer: null,
       timeline: [] as TimelineEvent[],
       lines: [] as LineMessage[],
+      gmail: [] as GmailSource[],
+      calendar: [] as CalendarSource[],
+      usageCandidates: [] as UsageCandidate[],
       contracts: [] as Contract[],
       ticketUsage: [] as TicketUsage[],
       followTasks: [] as FollowTask[],
@@ -179,6 +215,9 @@ async function loadCustomer(id: string) {
     { data: customer, error: customerError },
     { data: timeline, error: timelineError },
     { data: lines, error: linesError },
+    { data: gmail, error: gmailError },
+    { data: calendar, error: calendarError },
+    { data: usageCandidates, error: usageCandidatesError },
     { data: contracts, error: contractsError },
     { data: ticketUsage, error: ticketUsageError },
     { data: followTasks, error: followTasksError },
@@ -191,6 +230,9 @@ async function loadCustomer(id: string) {
     supabase.from('customers').select('*').eq('id', id).single(),
     supabase.from('customer_timeline_events').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
     supabase.from('ai_secretary_line_inbox').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
+    supabase.from('gmail_sync_sources').select('*').eq('customer_id', id).order('occurred_at', { ascending: false, nullsFirst: false }).limit(100),
+    supabase.from('calendar_sync_sources').select('*').eq('customer_id', id).order('starts_at', { ascending: false, nullsFirst: false }).limit(100),
+    supabase.from('ai_secretary_calendar_usage_candidates').select('*').eq('customer_id', id).eq('status', 'pending').order('candidate_date', { ascending: false }).limit(100),
     supabase.from('ai_secretary_contracts').select('*').eq('customer_id', id).order('purchase_date', { ascending: false, nullsFirst: false }).limit(100),
     supabase.from('ticket_usage').select('*').eq('customer_id', id).order('usage_date', { ascending: false }).limit(100),
     supabase.from('follow_tasks').select('*').eq('customer_id', id).order('due_date', { ascending: true, nullsFirst: false }).limit(100),
@@ -201,11 +243,14 @@ async function loadCustomer(id: string) {
     supabase.from('contract_documents').select('id,title,status,file_name,ai_suggestion,notes,created_at').eq('customer_id', id).order('created_at', { ascending: false }).limit(100),
   ])
 
-  const error = customerError?.message || timelineError?.message || linesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || aiProfileError?.message || contractTemplatesError?.message || contractDocumentsError?.message || null
+  const error = customerError?.message || timelineError?.message || linesError?.message || gmailError?.message || calendarError?.message || usageCandidatesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || aiProfileError?.message || contractTemplatesError?.message || contractDocumentsError?.message || null
   return {
     customer: customer as Customer | null,
     timeline: (timeline || []) as TimelineEvent[],
     lines: (lines || []) as LineMessage[],
+    gmail: (gmail || []) as GmailSource[],
+    calendar: (calendar || []) as CalendarSource[],
+    usageCandidates: (usageCandidates || []) as UsageCandidate[],
     contracts: (contracts || []) as Contract[],
     ticketUsage: (ticketUsage || []) as TicketUsage[],
     followTasks: (followTasks || []) as FollowTask[],
@@ -272,7 +317,7 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
     return <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900">閲覧トークンが必要です。</div>
   }
 
-  const { customer, timeline, lines, contracts, ticketUsage, followTasks, salesCandidates, products, contractTemplates, contractDocuments, aiProfile, error } = await loadCustomer(id)
+  const { customer, timeline, lines, gmail, calendar, usageCandidates, contracts, ticketUsage, followTasks, salesCandidates, products, contractTemplates, contractDocuments, aiProfile, error } = await loadCustomer(id)
 
   if (error || !customer) {
     return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">顧客読み取りエラー: {error || 'not_found'}</div>
@@ -292,6 +337,8 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
       <CustomerEditor customer={customer} token={token} />
 
       <ContractDocumentActions customerId={customer.id} token={token} templates={contractTemplates} documents={contractDocuments} />
+
+      <CalendarUsageCandidateActions token={token} candidates={usageCandidates} />
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -423,6 +470,44 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
             </div>
           ))}
           {ticketUsage.length === 0 && <p className="text-sm text-gray-500">回数消化履歴はまだありません。</p>}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-black text-gray-900">Gmail履歴</h3>
+        <div className="mt-4 space-y-3">
+          {gmail.map((mail) => (
+            <div key={mail.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-bold text-yellow-700">{mail.needs_reply ? '返信候補' : mail.status || 'Gmail'}</span>
+                <span className="text-xs font-bold text-gray-500">{formatDate(mail.occurred_at)}</span>
+                {mail.from_email && <span className="text-xs font-bold text-gray-500">{mail.from_email}</span>}
+              </div>
+              <p className="mt-3 font-bold text-gray-900">{mail.subject || '件名なし'}</p>
+              {mail.snippet && <p className="mt-2 whitespace-pre-wrap rounded-lg bg-white p-3 text-sm leading-7 text-gray-700">{mail.snippet}</p>}
+              {mail.ai_summary && <p className="mt-2 rounded-lg bg-green-50 p-3 text-sm leading-7 text-green-900">AI要約: {mail.ai_summary}</p>}
+              {mail.ai_reply_draft && <pre className="mt-2 whitespace-pre-wrap rounded-lg border border-gray-100 bg-white p-3 text-sm leading-7 text-gray-800">{mail.ai_reply_draft}</pre>}
+            </div>
+          ))}
+          {gmail.length === 0 && <p className="text-sm text-gray-500">Gmail履歴はまだありません。</p>}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-black text-gray-900">Googleカレンダー履歴</h3>
+        <div className="mt-4 space-y-3">
+          {calendar.map((event) => (
+            <div key={event.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">{event.status || 'scheduled'}</span>
+                <span className="text-xs font-bold text-gray-500">{formatDate(event.starts_at)}</span>
+                {event.ticket_usage_candidate && <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-700">消化候補元</span>}
+              </div>
+              <p className="mt-3 font-bold text-gray-900">{event.title || '予定'}</p>
+              {event.ai_summary && <p className="mt-2 rounded-lg bg-green-50 p-3 text-sm leading-7 text-green-900">AI要約: {event.ai_summary}</p>}
+            </div>
+          ))}
+          {calendar.length === 0 && <p className="text-sm text-gray-500">Googleカレンダー履歴はまだありません。</p>}
         </div>
       </section>
 
