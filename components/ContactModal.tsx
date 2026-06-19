@@ -14,14 +14,20 @@ export default function ContactModal({ result, onClose }: Props) {
 
   // localStorage から事前登録情報を自動入力
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('soccer-diagnosis-user');
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved.name) setName(saved.name);
-        if (saved.email) setEmail(saved.email);
+    const timer = window.setTimeout(() => {
+      try {
+        const raw = localStorage.getItem('soccer-diagnosis-user');
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (saved.name) setName(saved.name);
+          if (saved.email) setEmail(saved.email);
+        }
+      } catch {
+        /* ignore */
       }
-    } catch { /* ignore */ }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');

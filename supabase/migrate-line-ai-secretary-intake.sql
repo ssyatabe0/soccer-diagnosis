@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS line_messages (
   ai_summary TEXT,
   ai_reply_draft TEXT,
   matched_user_id UUID REFERENCES users(id),
+  customer_candidates JSONB DEFAULT '[]'::jsonb,
+  match_confidence TEXT,
+  match_reasons TEXT[] DEFAULT '{}',
   line_reply_status INTEGER,
   line_reply_ok BOOLEAN,
   raw_event JSONB,
@@ -33,6 +36,11 @@ CREATE INDEX IF NOT EXISTS idx_line_messages_occurred_at ON line_messages(occurr
 CREATE UNIQUE INDEX IF NOT EXISTS idx_line_messages_unique_message
   ON line_messages(account_key, line_message_id)
   WHERE line_message_id IS NOT NULL;
+
+ALTER TABLE line_messages
+  ADD COLUMN IF NOT EXISTS customer_candidates JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS match_confidence TEXT,
+  ADD COLUMN IF NOT EXISTS match_reasons TEXT[] DEFAULT '{}';
 
 ALTER TABLE line_messages ENABLE ROW LEVEL SECURITY;
 
@@ -51,6 +59,9 @@ SELECT
   lm.intent,
   lm.ai_summary,
   lm.ai_reply_draft,
+  lm.customer_candidates,
+  lm.match_confidence,
+  lm.match_reasons,
   lm.status,
   lm.occurred_at,
   lm.created_at,

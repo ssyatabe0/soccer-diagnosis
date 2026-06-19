@@ -7,6 +7,7 @@ const navItems = [
   { href: '/admin', label: 'ダッシュボード' },
   { href: '/admin/users', label: 'ユーザー一覧' },
   { href: '/admin/results', label: '診断結果' },
+  { href: '/admin/ai-secretary/line-inbox', label: 'AI秘書 LINE未対応' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

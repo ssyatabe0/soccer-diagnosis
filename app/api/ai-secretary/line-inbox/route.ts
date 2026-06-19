@@ -13,7 +13,8 @@ function isAuthorized(request: NextRequest) {
   if (!token) return false
 
   const header = request.headers.get('authorization') || ''
-  return header === `Bearer ${token}`
+  const queryToken = new URL(request.url).searchParams.get('token') || ''
+  return header === `Bearer ${token}` || queryToken === token
 }
 
 export async function GET(request: NextRequest) {
