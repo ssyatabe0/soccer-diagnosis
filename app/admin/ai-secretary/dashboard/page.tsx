@@ -266,6 +266,7 @@ export default async function AiSecretaryDashboardPage({ searchParams }: { searc
         <div className="flex flex-wrap gap-2">
           <Link href={`/admin/ai-secretary/revenue?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">売上候補</Link>
           <Link href={`/admin/ai-secretary/customers?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">顧客検索</Link>
+          <Link href={`/admin/ai-secretary/search?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">自然文検索</Link>
         </div>
       </div>
 

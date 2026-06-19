@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS customers (
   full_name TEXT,
   parent_name TEXT,
   child_name TEXT,
+  email TEXT,
+  phone TEXT,
   service_type TEXT NOT NULL DEFAULT 'unknown' CHECK (service_type IN ('private_lesson', 'ashiwaza_dribble', 'sysc', 'kids_school', 'overseas', 'unknown')),
   status TEXT NOT NULL DEFAULT 'new_inquiry' CHECK (status IN ('new_inquiry', 'trial_scheduling', 'trial_booked', 'trial_done', 'considering', 'enrolled', 'continuing', 'paused', 'withdrawn')),
   grade TEXT,
@@ -45,11 +47,30 @@ CREATE TABLE IF NOT EXISTS customers (
   enrolled_date DATE,
   withdrawn_date DATE,
   owner_name TEXT,
+  next_reservation_at TIMESTAMPTZ,
   memo TEXT,
   source TEXT NOT NULL DEFAULT 'line',
   first_contact_at TIMESTAMPTZ,
   last_contact_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS customer_ai_profiles (
+  customer_id UUID PRIMARY KEY REFERENCES customers(id) ON DELETE CASCADE,
+  overview TEXT,
+  pain_points TEXT,
+  inquiry_reason TEXT,
+  contract_reason TEXT,
+  continuation_reason TEXT,
+  churn_reason TEXT,
+  current_relationship TEXT,
+  reproposal_score TEXT CHECK (reproposal_score IN ('high', 'medium', 'low', 'unknown')) DEFAULT 'unknown',
+  review_request_score TEXT CHECK (review_request_score IN ('high', 'medium', 'low', 'unknown')) DEFAULT 'unknown',
+  recommended_service TEXT,
+  caution_notes TEXT,
+  source_summary TEXT,
+  generated_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -230,8 +251,14 @@ ALTER TABLE calendar_sync_sources
   ADD COLUMN IF NOT EXISTS ticket_usage_candidate BOOLEAN DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS ai_summary TEXT;
 
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS next_reservation_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_customers_service_type ON customers(service_type);
 CREATE INDEX IF NOT EXISTS idx_customers_status ON customers(status);
+CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(email);
 CREATE INDEX IF NOT EXISTS idx_customers_last_contact_at ON customers(last_contact_at DESC);
 CREATE INDEX IF NOT EXISTS idx_customer_line_accounts_customer_id ON customer_line_accounts(customer_id);
 CREATE INDEX IF NOT EXISTS idx_customer_line_accounts_line_user ON customer_line_accounts(account_key, line_user_id);
@@ -260,6 +287,11 @@ ALTER TABLE sales_pipeline DROP CONSTRAINT IF EXISTS sales_pipeline_opportunity_
 ALTER TABLE sales_pipeline
   ADD CONSTRAINT sales_pipeline_opportunity_type_check
   CHECK (opportunity_type IN ('renewal', 'expiry_follow', 'unused_follow', 'review_request', 'ashiwaza_candidate', 'sysc_candidate', 'kids_school_candidate', 'private_lesson_reproposal', 'monthly_retention', 'manual'));
+
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS next_reservation_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS line_messages (
   id BIGSERIAL PRIMARY KEY,
@@ -339,6 +371,7 @@ ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ticket_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE follow_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sales_pipeline ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_ai_profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Service role full access line_messages" ON line_messages;
 CREATE POLICY "Service role full access line_messages"
@@ -387,6 +420,10 @@ CREATE POLICY "Service role full access follow_tasks"
 DROP POLICY IF EXISTS "Service role full access sales_pipeline" ON sales_pipeline;
 CREATE POLICY "Service role full access sales_pipeline"
   ON sales_pipeline FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access customer_ai_profiles" ON customer_ai_profiles;
+CREATE POLICY "Service role full access customer_ai_profiles"
+  ON customer_ai_profiles FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
 
 -- 既存LINE履歴を顧客マスタへ復元する。
 -- 同じ公式アカウント内の同じLINEユーザーIDを1顧客候補として扱い、

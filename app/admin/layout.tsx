@@ -11,6 +11,7 @@ const navItems = [
   { href: '/admin/ai-secretary/line-inbox', label: 'AI秘書 LINE未対応' },
   { href: '/admin/ai-secretary/customers', label: 'AI秘書 顧客マスタ' },
   { href: '/admin/ai-secretary/revenue', label: 'AI秘書 売上候補' },
+  { href: '/admin/ai-secretary/search', label: 'AI秘書 自然文検索' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

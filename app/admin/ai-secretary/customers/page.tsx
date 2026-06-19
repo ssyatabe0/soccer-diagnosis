@@ -8,6 +8,8 @@ type CustomerRow = {
   full_name: string | null
   parent_name: string | null
   child_name: string | null
+  email: string | null
+  phone: string | null
   service_type: string
   status: string
   grade: string | null
@@ -18,6 +20,7 @@ type CustomerRow = {
   enrolled_date: string | null
   withdrawn_date: string | null
   owner_name: string | null
+  next_reservation_at: string | null
   memo: string | null
   last_contact_at: string | null
   line_message_count: number | null
@@ -62,9 +65,12 @@ async function loadCustomers(status: string, serviceType: string, keyword: strin
       customer.full_name,
       customer.parent_name,
       customer.child_name,
+      customer.email,
+      customer.phone,
       customer.grade,
       customer.region,
       customer.team_name,
+      customer.next_reservation_at,
       customer.memo,
       ...(customer.line_account_names || []),
     ].filter(Boolean).join(' ').toLowerCase().includes(normalized)
@@ -132,7 +138,7 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
       <form className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_auto_auto]">
         <input type="hidden" name="token" value={token} />
         <input type="hidden" name="status" value={status} />
-        <input name="q" defaultValue={keyword} placeholder="氏名・保護者・子ども・地域・所属チームで検索" className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" />
+        <input name="q" defaultValue={keyword} placeholder="氏名・保護者・子ども・メール・電話・地域・所属チームで検索" className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" />
         <select name="service_type" defaultValue={serviceType} className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100">
           <option value="">全サービス</option>
           <option value="private_lesson">個人レッスン</option>
@@ -166,9 +172,11 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
                 <h3 className="mt-3 text-lg font-black text-gray-900">{customer.full_name || customer.child_name || customer.parent_name || '名前未登録'}</h3>
                 <p className="mt-1 text-sm text-gray-500">保護者: {customer.parent_name || '-'} / 子ども: {customer.child_name || '-'} / 学年: {customer.grade || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">地域: {customer.region || '-'} / 所属: {customer.team_name || '-'}</p>
+                <p className="mt-1 text-sm text-gray-500">メール: {customer.email || '-'} / 電話: {customer.phone || '-'}</p>
               </div>
               <div className="text-left text-xs text-gray-500 md:text-right">
                 <div>最終連絡: {formatDate(customer.last_contact_at)}</div>
+                <div className="mt-1">次回予約: {formatDate(customer.next_reservation_at)}</div>
                 <div className="mt-1">LINE公式: {(customer.line_account_names || []).join(', ') || '-'}</div>
               </div>
             </div>

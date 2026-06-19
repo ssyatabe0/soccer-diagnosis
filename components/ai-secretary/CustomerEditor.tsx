@@ -7,6 +7,8 @@ type Customer = {
   full_name: string | null
   parent_name: string | null
   child_name: string | null
+  email: string | null
+  phone: string | null
   service_type: string
   status: string
   grade: string | null
@@ -17,6 +19,7 @@ type Customer = {
   enrolled_date: string | null
   withdrawn_date: string | null
   owner_name: string | null
+  next_reservation_at: string | null
   memo: string | null
 }
 
@@ -51,6 +54,8 @@ export function CustomerEditor({ customer, token }: Props) {
     full_name: customer.full_name || '',
     parent_name: customer.parent_name || '',
     child_name: customer.child_name || '',
+    email: customer.email || '',
+    phone: customer.phone || '',
     service_type: customer.service_type || 'unknown',
     status: customer.status || 'new_inquiry',
     grade: customer.grade || '',
@@ -61,6 +66,7 @@ export function CustomerEditor({ customer, token }: Props) {
     enrolled_date: customer.enrolled_date || '',
     withdrawn_date: customer.withdrawn_date || '',
     owner_name: customer.owner_name || '',
+    next_reservation_at: customer.next_reservation_at || '',
     memo: customer.memo || '',
   })
   const [message, setMessage] = useState('')
@@ -107,6 +113,8 @@ export function CustomerEditor({ customer, token }: Props) {
         <Field label="氏名" value={form.full_name} onChange={(value) => update('full_name', value)} />
         <Field label="保護者名" value={form.parent_name} onChange={(value) => update('parent_name', value)} />
         <Field label="子ども名" value={form.child_name} onChange={(value) => update('child_name', value)} />
+        <Field label="メール" type="email" value={form.email} onChange={(value) => update('email', value)} />
+        <Field label="電話" type="tel" value={form.phone} onChange={(value) => update('phone', value)} />
         <Field label="学年" value={form.grade} onChange={(value) => update('grade', value)} />
         <Field label="地域" value={form.region} onChange={(value) => update('region', value)} />
         <Field label="所属チーム" value={form.team_name} onChange={(value) => update('team_name', value)} />
@@ -117,6 +125,7 @@ export function CustomerEditor({ customer, token }: Props) {
         <Field label="入会日" type="date" value={form.enrolled_date} onChange={(value) => update('enrolled_date', value)} />
         <Field label="退会日" type="date" value={form.withdrawn_date} onChange={(value) => update('withdrawn_date', value)} />
         <Field label="担当者" value={form.owner_name} onChange={(value) => update('owner_name', value)} />
+        <Field label="次回予約日時" value={form.next_reservation_at} onChange={(value) => update('next_reservation_at', value)} />
       </div>
 
       <label className="mt-4 block">

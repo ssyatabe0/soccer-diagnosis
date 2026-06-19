@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { CustomerEditor } from '@/components/ai-secretary/CustomerEditor'
 import { CustomerRevenueActions } from '@/components/ai-secretary/CustomerRevenueActions'
+import { ProfileGenerateButton } from '@/components/ai-secretary/ProfileGenerateButton'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -10,6 +11,8 @@ type Customer = {
   full_name: string | null
   parent_name: string | null
   child_name: string | null
+  email: string | null
+  phone: string | null
   service_type: string
   status: string
   grade: string | null
@@ -20,6 +23,7 @@ type Customer = {
   enrolled_date: string | null
   withdrawn_date: string | null
   owner_name: string | null
+  next_reservation_at: string | null
   memo: string | null
   first_contact_at: string | null
   last_contact_at: string | null
@@ -100,6 +104,22 @@ type Product = {
   monthly_fee: number | null
 }
 
+type AiProfile = {
+  overview: string | null
+  pain_points: string | null
+  inquiry_reason: string | null
+  contract_reason: string | null
+  continuation_reason: string | null
+  churn_reason: string | null
+  current_relationship: string | null
+  reproposal_score: string | null
+  review_request_score: string | null
+  recommended_service: string | null
+  caution_notes: string | null
+  source_summary: string | null
+  generated_at: string | null
+}
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -128,6 +148,7 @@ async function loadCustomer(id: string) {
       followTasks: [] as FollowTask[],
       salesCandidates: [] as SalesCandidate[],
       products: [] as Product[],
+      aiProfile: null as AiProfile | null,
       error: 'supabase_not_configured',
     }
   }
@@ -141,6 +162,7 @@ async function loadCustomer(id: string) {
     { data: followTasks, error: followTasksError },
     { data: salesCandidates, error: salesCandidatesError },
     { data: products, error: productsError },
+    { data: aiProfile, error: aiProfileError },
   ] = await Promise.all([
     supabase.from('customers').select('*').eq('id', id).single(),
     supabase.from('customer_timeline_events').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
@@ -150,9 +172,10 @@ async function loadCustomer(id: string) {
     supabase.from('follow_tasks').select('*').eq('customer_id', id).order('due_date', { ascending: true, nullsFirst: false }).limit(100),
     supabase.from('ai_secretary_sales_candidates').select('*').eq('customer_id', id).limit(100),
     supabase.from('products').select('id,name,product_type,ticket_count,price,monthly_fee').eq('is_active', true).order('service_type', { ascending: true }),
+    supabase.from('customer_ai_profiles').select('*').eq('customer_id', id).maybeSingle(),
   ])
 
-  const error = customerError?.message || timelineError?.message || linesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || null
+  const error = customerError?.message || timelineError?.message || linesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || aiProfileError?.message || null
   return {
     customer: customer as Customer | null,
     timeline: (timeline || []) as TimelineEvent[],
@@ -162,6 +185,7 @@ async function loadCustomer(id: string) {
     followTasks: (followTasks || []) as FollowTask[],
     salesCandidates: (salesCandidates || []) as SalesCandidate[],
     products: (products || []) as Product[],
+    aiProfile: aiProfile as AiProfile | null,
     error,
   }
 }
@@ -220,7 +244,7 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
     return <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900">閲覧トークンが必要です。</div>
   }
 
-  const { customer, timeline, lines, contracts, ticketUsage, followTasks, salesCandidates, products, error } = await loadCustomer(id)
+  const { customer, timeline, lines, contracts, ticketUsage, followTasks, salesCandidates, products, aiProfile, error } = await loadCustomer(id)
 
   if (error || !customer) {
     return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">顧客読み取りエラー: {error || 'not_found'}</div>
@@ -238,6 +262,34 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
       </div>
 
       <CustomerEditor customer={customer} token={token} />
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-black text-gray-900">AI人物カルテ</h3>
+            <p className="mt-1 text-xs text-gray-500">LINE・Gmail・カレンダー・契約履歴から第二の脳用カルテを生成します。</p>
+          </div>
+          <ProfileGenerateButton customerId={customer.id} token={token} />
+        </div>
+        {aiProfile ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <ProfileBlock label="人物概要" value={aiProfile.overview} />
+            <ProfileBlock label="悩み" value={aiProfile.pain_points} />
+            <ProfileBlock label="問い合わせ理由" value={aiProfile.inquiry_reason} />
+            <ProfileBlock label="契約理由" value={aiProfile.contract_reason} />
+            <ProfileBlock label="継続理由" value={aiProfile.continuation_reason} />
+            <ProfileBlock label="辞めた理由" value={aiProfile.churn_reason} />
+            <ProfileBlock label="現在の関係性" value={aiProfile.current_relationship} />
+            <ProfileBlock label="再提案可能性" value={aiProfile.reproposal_score} />
+            <ProfileBlock label="レビュー依頼可能性" value={aiProfile.review_request_score} />
+            <ProfileBlock label="おすすめサービス" value={aiProfile.recommended_service} />
+            <ProfileBlock label="要注意事項" value={aiProfile.caution_notes} />
+            <ProfileBlock label="根拠サマリー" value={aiProfile.source_summary} />
+          </div>
+        ) : (
+          <p className="mt-4 rounded-xl bg-gray-50 p-4 text-sm text-gray-600">まだAI人物カルテはありません。ボタンで生成できます。</p>
+        )}
+      </section>
 
       <CustomerRevenueActions customerId={customer.id} token={token} products={products} contracts={contracts} followTasks={followTasks} />
 
@@ -389,6 +441,15 @@ function MiniStat({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg bg-white p-3">
       <p className="text-xs font-bold text-gray-500">{label}</p>
       <p className="mt-1 text-lg font-black text-gray-900">{value}</p>
+    </div>
+  )
+}
+
+function ProfileBlock({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+      <p className="text-xs font-black text-gray-500">{label}</p>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-gray-800">{value || '-'}</p>
     </div>
   )
 }
