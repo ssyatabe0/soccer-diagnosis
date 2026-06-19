@@ -1,6 +1,33 @@
 -- LINE既存WebhookをAI秘書に接続するための最小保存テーブル
 -- 既存 users テーブルは顧客候補として再利用し、LINE受信全文だけを追加保存する。
 
+CREATE TABLE IF NOT EXISTS line_accounts (
+  account_key TEXT PRIMARY KEY,
+  display_name TEXT NOT NULL,
+  service_area TEXT,
+  webhook_url TEXT,
+  line_basic_id TEXT,
+  destination TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO line_accounts (account_key, display_name, service_area, webhook_url, notes)
+VALUES
+  ('soccer_private_lesson', 'サッカー家庭教師', '個人レッスン', 'https://soccer-diagnosis.vercel.app/api/line/webhook?account=soccer_private_lesson', '既存接続済み'),
+  ('japan_kids_soccer_club', 'JAPANキッズサッカークラブ', 'キッズスクール', 'https://soccer-diagnosis.vercel.app/api/line/webhook?account=japan_kids_soccer_club', '接続予定'),
+  ('sysc_team_broadcast', 'SYSCチーム一斉連絡', 'SYSC', 'https://soccer-diagnosis.vercel.app/api/line/webhook?account=sysc_team_broadcast', '接続予定。チーム内連絡用'),
+  ('sysc_inquiry_news', 'SYSC問い合わせ＆最新情報', 'SYSC', 'https://soccer-diagnosis.vercel.app/api/line/webhook?account=sysc_inquiry_news', '接続予定。問い合わせ・告知用'),
+  ('dribble_school', 'ドリブル塾', '足技塾/ドリブル塾', 'https://soccer-diagnosis.vercel.app/api/line/webhook?account=dribble_school', '接続予定')
+ON CONFLICT (account_key) DO UPDATE SET
+  display_name = EXCLUDED.display_name,
+  service_area = EXCLUDED.service_area,
+  webhook_url = EXCLUDED.webhook_url,
+  notes = EXCLUDED.notes,
+  updated_at = NOW();
+
 CREATE TABLE IF NOT EXISTS line_messages (
   id BIGSERIAL PRIMARY KEY,
   account_key TEXT NOT NULL DEFAULT 'soccer_private_lesson',
@@ -16,6 +43,7 @@ CREATE TABLE IF NOT EXISTS line_messages (
   intent TEXT DEFAULT 'line_message',
   ai_summary TEXT,
   ai_reply_draft TEXT,
+  manual_memo TEXT,
   matched_user_id UUID REFERENCES users(id),
   customer_candidates JSONB DEFAULT '[]'::jsonb,
   match_confidence TEXT,
@@ -40,14 +68,23 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_line_messages_unique_message
 ALTER TABLE line_messages
   ADD COLUMN IF NOT EXISTS customer_candidates JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS match_confidence TEXT,
-  ADD COLUMN IF NOT EXISTS match_reasons TEXT[] DEFAULT '{}';
+  ADD COLUMN IF NOT EXISTS match_reasons TEXT[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS manual_memo TEXT;
 
 ALTER TABLE line_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE line_accounts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Service role full access line_messages" ON line_messages;
 CREATE POLICY "Service role full access line_messages"
   ON line_messages FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
 
+DROP POLICY IF EXISTS "Service role full access line_accounts" ON line_accounts;
+CREATE POLICY "Service role full access line_accounts"
+  ON line_accounts FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
 -- 管理画面やAI秘書が未対応LINEを読みやすいようにするビュー。
+DROP VIEW IF EXISTS ai_secretary_line_inbox;
+
 CREATE OR REPLACE VIEW ai_secretary_line_inbox AS
 SELECT
   lm.id,
@@ -59,12 +96,15 @@ SELECT
   lm.intent,
   lm.ai_summary,
   lm.ai_reply_draft,
+  lm.manual_memo,
   lm.customer_candidates,
   lm.match_confidence,
   lm.match_reasons,
   lm.status,
   lm.occurred_at,
   lm.created_at,
+  la.display_name AS account_display_name,
+  la.service_area AS account_service_area,
   u.id AS user_id,
   u.name,
   u.email,
@@ -76,4 +116,5 @@ SELECT
   u.staff_required,
   u.selection_priority
 FROM line_messages lm
+LEFT JOIN line_accounts la ON la.account_key = lm.account_key
 LEFT JOIN users u ON u.id = lm.matched_user_id;

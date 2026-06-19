@@ -1,16 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
+import { CopyReplyButton, ManualMemoForm } from '@/components/ai-secretary/LineInboxActions'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
 type LineInboxItem = {
   id: number
   account_key: string | null
+  account_display_name: string | null
+  account_service_area: string | null
   line_user_id: string | null
   body: string
   extracted_type: string | null
   intent: string | null
   ai_summary: string | null
   ai_reply_draft: string | null
+  manual_memo: string | null
   customer_candidates: Array<{
     user_id: string
     name: string | null
@@ -91,6 +95,16 @@ function statusLabel(status: string) {
   return status
 }
 
+function intentLabel(intent: string | null) {
+  if (intent === 'booking') return '予約・日程'
+  if (intent === 'inquiry') return '問い合わせ'
+  if (intent === 'ticket_check') return '回数券・期限'
+  if (intent === 'positive_feedback') return '成果・感想'
+  if (intent === 'diagnosis_result_followup') return '診断フォロー'
+  if (intent === 'line_message') return '通常LINE'
+  return intent || '未分類'
+}
+
 function confidenceClass(confidence: string | null) {
   if (confidence === 'high') return 'bg-green-100 text-green-700'
   if (confidence === 'medium') return 'bg-yellow-100 text-yellow-700'
@@ -154,11 +168,16 @@ export default async function AiSecretaryLineInboxPage({
                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white">{statusLabel(item.status)}</span>
-                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">{item.account_key || 'line'}</span>
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
+                      {item.account_display_name || item.account_key || 'line'}
+                    </span>
+                    <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">{intentLabel(item.intent)}</span>
                     <span className={`rounded-full px-3 py-1 text-xs font-bold ${confidenceClass(item.match_confidence)}`}>
                       照合: {item.match_confidence || '未確定'}
                     </span>
-                    <span className="text-xs text-gray-500">{formatDate(item.occurred_at)}</span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-gray-600 ring-1 ring-gray-200">
+                      受信日時: {formatDate(item.occurred_at)}
+                    </span>
                   </div>
                   <div className="text-xs text-gray-400">LINE userId: {item.line_user_id || '-'}</div>
                 </div>
@@ -168,6 +187,28 @@ export default async function AiSecretaryLineInboxPage({
                 <section className="space-y-4 p-5">
                   <div>
                     <h3 className="text-sm font-bold text-gray-900">受信内容</h3>
+                    <dl className="mt-2 grid gap-2 rounded-xl bg-white p-3 text-xs text-gray-600 ring-1 ring-gray-100 sm:grid-cols-3">
+                      <div>
+                        <dt className="font-bold text-gray-400">受信日時</dt>
+                        <dd className="mt-1 font-bold text-gray-800">{formatDate(item.occurred_at)}</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-gray-400">問い合わせ種別</dt>
+                        <dd className="mt-1 font-bold text-gray-800">{intentLabel(item.intent)}</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-gray-400">対応ステータス</dt>
+                        <dd className="mt-1 font-bold text-gray-800">{statusLabel(item.status)}</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-gray-400">LINE公式</dt>
+                        <dd className="mt-1 font-bold text-gray-800">{item.account_display_name || item.account_key || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="font-bold text-gray-400">サービス</dt>
+                        <dd className="mt-1 font-bold text-gray-800">{item.account_service_area || '-'}</dd>
+                      </div>
+                    </dl>
                     <p className="mt-2 whitespace-pre-wrap rounded-xl bg-gray-50 p-4 text-sm leading-7 text-gray-800">{item.body}</p>
                   </div>
 
@@ -177,12 +218,17 @@ export default async function AiSecretaryLineInboxPage({
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900">AI返信下書き</h3>
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-bold text-gray-900">AI返信下書き</h3>
+                      <CopyReplyButton text={item.ai_reply_draft} />
+                    </div>
                     <pre className="mt-2 whitespace-pre-wrap rounded-xl border border-gray-200 bg-white p-4 text-sm leading-7 text-gray-900">{item.ai_reply_draft || '未生成'}</pre>
                   </div>
                 </section>
 
                 <aside className="space-y-4 border-t border-gray-100 bg-white p-5 lg:border-l lg:border-t-0">
+                  <ManualMemoForm id={item.id} initialMemo={item.manual_memo} token={token} />
+
                   <div>
                     <h3 className="text-sm font-bold text-gray-900">顧客照合</h3>
                     {item.user_id ? (

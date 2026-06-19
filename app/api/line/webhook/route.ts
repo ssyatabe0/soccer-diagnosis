@@ -316,10 +316,26 @@ ${CTA}`
   }
 }
 
+function getAccountKey(req: NextRequest, destination?: string | null) {
+  const explicitAccount = req.nextUrl.searchParams.get('account') || req.nextUrl.searchParams.get('account_key')
+  if (explicitAccount) return explicitAccount
+
+  const rawMap = process.env.LINE_ACCOUNT_DESTINATION_MAP
+  if (!rawMap || !destination) return process.env.LINE_ACCOUNT_KEY || 'soccer_private_lesson'
+
+  try {
+    const map = JSON.parse(rawMap) as Record<string, string>
+    return map[destination] || process.env.LINE_ACCOUNT_KEY || 'soccer_private_lesson'
+  } catch {
+    return process.env.LINE_ACCOUNT_KEY || 'soccer_private_lesson'
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const events = body.events || []
+    const accountKey = getAccountKey(req, body.destination)
 
     for (const event of events) {
       if (event.type !== 'message') continue
@@ -362,6 +378,7 @@ export async function POST(req: NextRequest) {
         text,
         extractedType: type,
         autoReplyText: replyText,
+        accountKey,
         lineReplyStatus,
         lineReplyOk,
       })

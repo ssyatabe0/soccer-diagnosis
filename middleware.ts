@@ -3,13 +3,18 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(request: NextRequest) {
   // /admin 配下のみ認証必須
   const basicAuth = request.headers.get('authorization');
+  const validUser = process.env.ADMIN_USER;
+  const validPass = process.env.ADMIN_PASSWORD;
+
+  if (!validUser || !validPass) {
+    return new NextResponse('管理画面の認証情報が未設定です', {
+      status: 503,
+    });
+  }
 
   if (basicAuth) {
     const authValue = basicAuth.split(' ')[1];
     const [user, pwd] = atob(authValue).split(':');
-
-    const validUser = process.env.ADMIN_USER || 'admin';
-    const validPass = process.env.ADMIN_PASSWORD || 'admin';
 
     if (user === validUser && pwd === validPass) {
       return NextResponse.next();

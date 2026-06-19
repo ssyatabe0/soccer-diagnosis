@@ -22,6 +22,7 @@ type SaveLineMessageInput = {
   text: string
   extractedType: string | null
   autoReplyText: string
+  accountKey?: string | null
   lineReplyStatus?: number
   lineReplyOk?: boolean
 }
@@ -58,6 +59,11 @@ type ScoredCandidate = {
 
 const LINE_ACCOUNT_KEY = process.env.LINE_ACCOUNT_KEY || 'soccer_private_lesson'
 const AI_SECRETARY_DISABLED = process.env.AI_SECRETARY_DISABLED === 'true'
+
+function normalizeAccountKey(value: string | null | undefined) {
+  const normalized = String(value || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_')
+  return normalized || LINE_ACCOUNT_KEY
+}
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -222,6 +228,7 @@ export async function saveLineMessageForAiSecretary(input: SaveLineMessageInput)
 
   const event = input.event
   const lineUserId = event.source?.userId || ''
+  const accountKey = normalizeAccountKey(input.accountKey)
   const occurredAt = event.timestamp ? new Date(event.timestamp).toISOString() : new Date().toISOString()
   const intent = summarizeIntent(input.text, input.extractedType)
   const candidates = await findUserCandidates(supabase, lineUserId, input.text, input.extractedType)
@@ -230,7 +237,7 @@ export async function saveLineMessageForAiSecretary(input: SaveLineMessageInput)
   const aiReplyDraft = buildDraft(input.text, input.extractedType, topCandidate)
 
   const { error } = await supabase.from('line_messages').insert({
-    account_key: LINE_ACCOUNT_KEY,
+    account_key: accountKey,
     line_user_id: lineUserId || null,
     line_source_type: event.source?.type || null,
     line_group_id: event.source?.groupId || null,

@@ -48,3 +48,35 @@ export async function GET(request: NextRequest) {
     items: data || [],
   })
 }
+
+export async function PATCH(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  const supabase = getServiceClient()
+  if (!supabase) {
+    return NextResponse.json({ error: 'supabase_not_configured' }, { status: 500 })
+  }
+
+  const body = await request.json().catch(() => null)
+  const id = Number(body?.id)
+  const manualMemo = String(body?.manual_memo || '').slice(0, 5000)
+
+  if (!Number.isFinite(id) || id <= 0) {
+    return NextResponse.json({ error: 'invalid_id' }, { status: 400 })
+  }
+
+  const { data, error } = await supabase
+    .from('line_messages')
+    .update({ manual_memo: manualMemo })
+    .eq('id', id)
+    .select('id, manual_memo')
+    .single()
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ status: 'ok', item: data })
+}
