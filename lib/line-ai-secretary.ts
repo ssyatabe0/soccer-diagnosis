@@ -57,6 +57,9 @@ type ScoredCandidate = {
   }
 }
 
+type ServiceCategory = 'private_lesson' | 'ashiwaza_dribble' | 'sysc' | 'kids_school' | 'overseas' | 'unknown'
+type CustomerStatus = 'new_inquiry' | 'trial_scheduling' | 'trial_booked' | 'trial_done' | 'considering' | 'enrolled' | 'continuing' | 'paused' | 'withdrawn'
+
 const LINE_ACCOUNT_KEY = process.env.LINE_ACCOUNT_KEY || 'soccer_private_lesson'
 const AI_SECRETARY_DISABLED = process.env.AI_SECRETARY_DISABLED === 'true'
 
@@ -81,6 +84,35 @@ function summarizeIntent(text: string, extractedType: string | null) {
   return 'line_message'
 }
 
+function classifyService(text: string, accountKey: string): ServiceCategory {
+  const normalized = `${accountKey} ${text}`.toLowerCase()
+
+  if (/海外|英語|english|abroad|guam|グアム|ハワイ|hawaii|international/.test(normalized)) return 'overseas'
+  if (/sysc|セレクション|スカウト|チーム|試合参加/.test(normalized)) return 'sysc'
+  if (/足技|ドリブル塾|ドリブル|dribble|ashiwaza/.test(normalized)) return 'ashiwaza_dribble'
+  if (/キッズ|kids|スクール|年長|年中|園児|小1|小2/.test(normalized)) return 'kids_school'
+  if (/個人レッスン|家庭教師|プライベート|マンツーマン|回数券|体験レッスン/.test(normalized)) return 'private_lesson'
+
+  if (accountKey === 'japan_kids_soccer_club') return 'kids_school'
+  if (accountKey === 'sysc_team_broadcast' || accountKey === 'sysc_inquiry_news') return 'sysc'
+  if (accountKey === 'dribble_school') return 'ashiwaza_dribble'
+  if (accountKey === 'soccer_private_lesson') return 'private_lesson'
+
+  return 'unknown'
+}
+
+function classifyCustomerStatus(text: string, intent: string): CustomerStatus {
+  if (/退会|辞め|やめ|終了/.test(text)) return 'withdrawn'
+  if (/休会|休み/.test(text)) return 'paused'
+  if (/継続|更新|追加|次回|またお願い/.test(text)) return 'continuing'
+  if (/入会|申込|申し込み|契約/.test(text)) return 'enrolled'
+  if (/体験.*(完了|ありがとうございました|終わ)/.test(text)) return 'trial_done'
+  if (/体験.*(予約|確定|お願いします|決定)/.test(text)) return 'trial_booked'
+  if (/体験|日程|候補日|空き|予約/.test(text) || intent === 'booking') return 'trial_scheduling'
+  if (/検討|考え|相談/.test(text)) return 'considering'
+  return 'new_inquiry'
+}
+
 function summarizeLineMessage(text: string, extractedType: string | null) {
   const trimmed = text.replace(/\s+/g, ' ').trim()
   if (extractedType) return `診断結果「${extractedType}」に関するLINE。追加相談・個別案内の可能性あり。`
@@ -88,6 +120,109 @@ function summarizeLineMessage(text: string, extractedType: string | null) {
   if (/体験|問い合わせ|相談|診断|お願い|興味/.test(text)) return `問い合わせ・相談系LINE: ${trimmed.slice(0, 120)}`
   if (/回数|残り|期限|チケット|回券/.test(text)) return `回数券・期限確認系LINE: ${trimmed.slice(0, 120)}`
   return trimmed.slice(0, 240)
+}
+
+async function ensureCustomerForLineMessage(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    accountKey: string
+    lineUserId: string
+    text: string
+    intent: string
+    serviceCategory: ServiceCategory
+    customerStatus: CustomerStatus
+    occurredAt: string
+  }
+) {
+  if (!input.lineUserId) return null
+
+  const { data: existingLink } = await supabase
+    .from('customer_line_accounts')
+    .select('customer_id')
+    .eq('account_key', input.accountKey)
+    .eq('line_user_id', input.lineUserId)
+    .maybeSingle()
+
+  if (existingLink?.customer_id) {
+    await supabase
+      .from('customers')
+      .update({
+        service_type: input.serviceCategory === 'unknown' ? undefined : input.serviceCategory,
+        status: input.customerStatus,
+        last_contact_at: input.occurredAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existingLink.customer_id)
+
+    await supabase
+      .from('customer_line_accounts')
+      .update({ last_seen_at: input.occurredAt, updated_at: new Date().toISOString() })
+      .eq('account_key', input.accountKey)
+      .eq('line_user_id', input.lineUserId)
+
+    return existingLink.customer_id as string
+  }
+
+  const { data: customer, error } = await supabase
+    .from('customers')
+    .insert({
+      service_type: input.serviceCategory,
+      status: input.customerStatus,
+      inquiry_date: input.occurredAt.slice(0, 10),
+      source: 'line',
+      first_contact_at: input.occurredAt,
+      last_contact_at: input.occurredAt,
+      memo: `LINEから自動作成。初回内容: ${input.text.slice(0, 180)}`,
+    })
+    .select('id')
+    .single()
+
+  if (error || !customer?.id) {
+    console.error('customers insert error:', error?.message)
+    return null
+  }
+
+  await supabase.from('customer_line_accounts').insert({
+    customer_id: customer.id,
+    account_key: input.accountKey,
+    line_user_id: input.lineUserId,
+    first_seen_at: input.occurredAt,
+    last_seen_at: input.occurredAt,
+  })
+
+  return customer.id as string
+}
+
+async function addCustomerTimelineEvent(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    customerId: string | null
+    accountKey: string
+    lineMessageId: number | string | null
+    text: string
+    intent: string
+    occurredAt: string
+  }
+) {
+  if (!input.customerId) return
+
+  const title = input.intent === 'booking'
+    ? 'LINE予約・日程相談'
+    : input.intent === 'inquiry'
+      ? 'LINE問い合わせ'
+      : 'LINE受信'
+
+  await supabase.from('customer_timeline_events').insert({
+    customer_id: input.customerId,
+    event_type: 'line_message',
+    title,
+    body: input.text,
+    source: 'line',
+    source_table: 'line_messages',
+    source_id: input.lineMessageId ? String(input.lineMessageId) : null,
+    account_key: input.accountKey,
+    occurred_at: input.occurredAt,
+  })
 }
 
 function buildDraft(text: string, extractedType: string | null, topCandidate?: ScoredCandidate | null) {
@@ -231,12 +366,23 @@ export async function saveLineMessageForAiSecretary(input: SaveLineMessageInput)
   const accountKey = normalizeAccountKey(input.accountKey)
   const occurredAt = event.timestamp ? new Date(event.timestamp).toISOString() : new Date().toISOString()
   const intent = summarizeIntent(input.text, input.extractedType)
+  const serviceCategory = classifyService(input.text, accountKey)
+  const customerStatus = classifyCustomerStatus(input.text, intent)
   const candidates = await findUserCandidates(supabase, lineUserId, input.text, input.extractedType)
   const topCandidate = candidates[0] || null
   const matchedUserId = topCandidate && topCandidate.confidence === 'high' ? topCandidate.user_id : null
   const aiReplyDraft = buildDraft(input.text, input.extractedType, topCandidate)
+  const customerId = await ensureCustomerForLineMessage(supabase, {
+    accountKey,
+    lineUserId,
+    text: input.text,
+    intent,
+    serviceCategory,
+    customerStatus,
+    occurredAt,
+  })
 
-  const { error } = await supabase.from('line_messages').insert({
+  const { data: insertedMessage, error } = await supabase.from('line_messages').insert({
     account_key: accountKey,
     line_user_id: lineUserId || null,
     line_source_type: event.source?.type || null,
@@ -248,8 +394,11 @@ export async function saveLineMessageForAiSecretary(input: SaveLineMessageInput)
     body: input.text,
     extracted_type: input.extractedType,
     intent,
+    service_category: serviceCategory,
+    customer_status: customerStatus,
     ai_summary: summarizeLineMessage(input.text, input.extractedType),
     ai_reply_draft: aiReplyDraft,
+    customer_id: customerId,
     matched_user_id: matchedUserId,
     customer_candidates: candidates,
     match_confidence: topCandidate?.confidence || null,
@@ -259,12 +408,21 @@ export async function saveLineMessageForAiSecretary(input: SaveLineMessageInput)
     raw_event: event,
     occurred_at: occurredAt,
     status: matchedUserId ? 'matched' : 'needs_review',
-  })
+  }).select('id').single()
 
   if (error) {
     console.error('line_messages insert error:', error.message)
     return { saved: false, reason: error.message }
   }
 
-  return { saved: true, matchedUserId, candidateCount: candidates.length }
+  await addCustomerTimelineEvent(supabase, {
+    customerId,
+    accountKey,
+    lineMessageId: insertedMessage?.id || null,
+    text: input.text,
+    intent,
+    occurredAt,
+  })
+
+  return { saved: true, matchedUserId, customerId, serviceCategory, customerStatus, candidateCount: candidates.length }
 }

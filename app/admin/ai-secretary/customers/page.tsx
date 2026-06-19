@@ -1,0 +1,153 @@
+import Link from 'next/link'
+import { createClient } from '@supabase/supabase-js'
+
+type SearchParams = Record<string, string | string[] | undefined>
+
+type CustomerRow = {
+  id: string
+  full_name: string | null
+  parent_name: string | null
+  child_name: string | null
+  service_type: string
+  status: string
+  grade: string | null
+  region: string | null
+  team_name: string | null
+  inquiry_date: string | null
+  trial_date: string | null
+  enrolled_date: string | null
+  withdrawn_date: string | null
+  owner_name: string | null
+  memo: string | null
+  last_contact_at: string | null
+  line_message_count: number | null
+  line_account_names: string[] | null
+}
+
+function getServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key || url.includes('placeholder')) return null
+  return createClient(url.replace(/\/+$/, ''), key)
+}
+
+function valueOf(value: string | string[] | undefined, fallback = '') {
+  if (Array.isArray(value)) return value[0] || fallback
+  return value || fallback
+}
+
+async function getSearchParams(input: Promise<SearchParams> | SearchParams | undefined) {
+  return input ? await Promise.resolve(input) : {}
+}
+
+async function loadCustomers(status: string, serviceType: string) {
+  const supabase = getServiceClient()
+  if (!supabase) return { items: [] as CustomerRow[], error: 'supabase_not_configured' }
+
+  let query = supabase
+    .from('ai_secretary_customers')
+    .select('*')
+    .order('last_contact_at', { ascending: false, nullsFirst: false })
+    .limit(200)
+
+  if (status) query = query.eq('status', status)
+  if (serviceType) query = query.eq('service_type', serviceType)
+
+  const { data, error } = await query
+  if (error) return { items: [] as CustomerRow[], error: error.message }
+  return { items: (data || []) as CustomerRow[], error: null }
+}
+
+function serviceLabel(value: string) {
+  if (value === 'private_lesson') return '個人レッスン'
+  if (value === 'ashiwaza_dribble') return '足技塾/ドリブル塾'
+  if (value === 'sysc') return 'SYSC'
+  if (value === 'kids_school') return 'キッズスクール'
+  if (value === 'overseas') return '海外問い合わせ'
+  return '未分類'
+}
+
+function statusLabel(value: string) {
+  const labels: Record<string, string> = {
+    new_inquiry: '新規問い合わせ',
+    trial_scheduling: '体験調整中',
+    trial_booked: '体験予約済み',
+    trial_done: '体験完了',
+    considering: '検討中',
+    enrolled: '入会',
+    continuing: '継続',
+    paused: '休会',
+    withdrawn: '退会',
+  }
+  return labels[value] || value
+}
+
+function formatDate(value: string | null) {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+}
+
+export default async function AiSecretaryCustomersPage({ searchParams }: { searchParams?: Promise<SearchParams> | SearchParams }) {
+  const params = await getSearchParams(searchParams)
+  const token = valueOf(params.token)
+  const status = valueOf(params.status)
+  const serviceType = valueOf(params.service_type)
+  const requiredToken = process.env.AI_SECRETARY_READ_TOKEN
+
+  if (!requiredToken || token !== requiredToken) {
+    return <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900">閲覧トークンが必要です。</div>
+  }
+
+  const { items, error } = await loadCustomers(status, serviceType)
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-xs font-bold text-green-700">Yatabe AI Secretary Phase2</p>
+          <h2 className="text-2xl font-black text-gray-900">顧客マスタ</h2>
+          <p className="mt-1 text-sm text-gray-500">LINE受信から自動作成された顧客を管理します。送信はしません。</p>
+        </div>
+        <Link href={`/admin/ai-secretary/line-inbox?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">LINE未対応へ</Link>
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs font-bold">
+        {[['', '全件'], ['new_inquiry', '新規'], ['trial_scheduling', '体験調整'], ['enrolled', '入会'], ['continuing', '継続'], ['withdrawn', '退会']].map(([key, label]) => (
+          <Link key={key} href={`/admin/ai-secretary/customers?token=${encodeURIComponent(token)}&status=${key}&service_type=${serviceType}`} className={`rounded-full px-3 py-2 ${status === key ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200'}`}>{label}</Link>
+        ))}
+      </div>
+
+      {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">Supabase読み取りエラー: {error}</div>}
+
+      <div className="grid gap-3">
+        {items.map((customer) => (
+          <Link key={customer.id} href={`/admin/ai-secretary/customers/${customer.id}?token=${encodeURIComponent(token)}`} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-green-300 hover:shadow-md">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">{serviceLabel(customer.service_type)}</span>
+                  <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">{statusLabel(customer.status)}</span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">LINE {customer.line_message_count || 0}件</span>
+                </div>
+                <h3 className="mt-3 text-lg font-black text-gray-900">{customer.full_name || customer.child_name || customer.parent_name || '名前未登録'}</h3>
+                <p className="mt-1 text-sm text-gray-500">保護者: {customer.parent_name || '-'} / 子ども: {customer.child_name || '-'} / 学年: {customer.grade || '-'}</p>
+                <p className="mt-1 text-sm text-gray-500">地域: {customer.region || '-'} / 所属: {customer.team_name || '-'}</p>
+              </div>
+              <div className="text-left text-xs text-gray-500 md:text-right">
+                <div>最終連絡: {formatDate(customer.last_contact_at)}</div>
+                <div className="mt-1">LINE公式: {(customer.line_account_names || []).join(', ') || '-'}</div>
+              </div>
+            </div>
+          </Link>
+        ))}
+
+        {items.length === 0 && !error && (
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center">
+            <p className="font-bold text-gray-800">顧客マスタはまだありません。</p>
+            <p className="mt-2 text-sm text-gray-500">新しいLINEが届くと自動作成されます。</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

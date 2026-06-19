@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import Link from 'next/link'
 import { CopyReplyButton, ManualMemoForm } from '@/components/ai-secretary/LineInboxActions'
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -15,6 +16,17 @@ type LineInboxItem = {
   ai_summary: string | null
   ai_reply_draft: string | null
   manual_memo: string | null
+  service_category: string | null
+  customer_status: string | null
+  customer_id: string | null
+  customer_full_name: string | null
+  customer_parent_name: string | null
+  customer_child_name: string | null
+  customer_grade: string | null
+  customer_region: string | null
+  customer_team_name: string | null
+  customer_master_status: string | null
+  customer_service_type: string | null
   customer_candidates: Array<{
     user_id: string
     name: string | null
@@ -139,7 +151,10 @@ export default async function AiSecretaryLineInboxPage({
           <h2 className="text-2xl font-black text-gray-900">LINE未対応一覧</h2>
           <p className="text-sm text-gray-500 mt-1">LINE受信、顧客候補、AI要約、返信下書きを確認する読み取り専用画面です。送信はしません。</p>
         </div>
-        <div className="flex gap-2 text-sm">
+        <div className="flex flex-wrap gap-2 text-sm">
+          <Link href={`/admin/ai-secretary/customers?token=${encodeURIComponent(token)}`} className="rounded-full bg-green-600 px-3 py-2 font-bold text-white">
+            顧客マスタ
+          </Link>
           {['needs_review', 'matched', 'handled'].map((row) => (
             <a
               key={row}
@@ -198,7 +213,7 @@ export default async function AiSecretaryLineInboxPage({
                       </div>
                       <div>
                         <dt className="font-bold text-gray-400">対応ステータス</dt>
-                        <dd className="mt-1 font-bold text-gray-800">{statusLabel(item.status)}</dd>
+                        <dd className="mt-1 font-bold text-gray-800">{statusLabel(item.status)} / {item.customer_status || '-'}</dd>
                       </div>
                       <div>
                         <dt className="font-bold text-gray-400">LINE公式</dt>
@@ -206,7 +221,7 @@ export default async function AiSecretaryLineInboxPage({
                       </div>
                       <div>
                         <dt className="font-bold text-gray-400">サービス</dt>
-                        <dd className="mt-1 font-bold text-gray-800">{item.account_service_area || '-'}</dd>
+                        <dd className="mt-1 font-bold text-gray-800">{item.account_service_area || item.service_category || '-'}</dd>
                       </div>
                     </dl>
                     <p className="mt-2 whitespace-pre-wrap rounded-xl bg-gray-50 p-4 text-sm leading-7 text-gray-800">{item.body}</p>
@@ -228,6 +243,21 @@ export default async function AiSecretaryLineInboxPage({
 
                 <aside className="space-y-4 border-t border-gray-100 bg-white p-5 lg:border-l lg:border-t-0">
                   <ManualMemoForm id={item.id} initialMemo={item.manual_memo} token={token} />
+
+                  {item.customer_id && (
+                    <Link
+                      href={`/admin/ai-secretary/customers/${item.customer_id}?token=${encodeURIComponent(token)}`}
+                      className="block rounded-xl border border-green-200 bg-green-50 p-4 text-sm transition hover:bg-green-100"
+                    >
+                      <div className="font-black text-green-950">顧客マスタを開く</div>
+                      <div className="mt-1 text-green-800">
+                        {item.customer_full_name || item.customer_child_name || item.customer_parent_name || '名前未登録'}
+                      </div>
+                      <div className="mt-1 text-xs text-green-700">
+                        学年: {item.customer_grade || '-'} / 地域: {item.customer_region || '-'} / 所属: {item.customer_team_name || '-'}
+                      </div>
+                    </Link>
+                  )}
 
                   <div>
                     <h3 className="text-sm font-bold text-gray-900">顧客照合</h3>
