@@ -7,6 +7,7 @@ const navItems = [
   { href: '/admin', label: 'ダッシュボード' },
   { href: '/admin/users', label: 'ユーザー一覧' },
   { href: '/admin/results', label: '診断結果' },
+  { href: '/admin/ai-secretary/dashboard', label: 'AI秘書 今日の対応' },
   { href: '/admin/ai-secretary/line-inbox', label: 'AI秘書 LINE未対応' },
   { href: '/admin/ai-secretary/customers', label: 'AI秘書 顧客マスタ' },
   { href: '/admin/ai-secretary/revenue', label: 'AI秘書 売上候補' },

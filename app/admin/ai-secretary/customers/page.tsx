@@ -40,7 +40,7 @@ async function getSearchParams(input: Promise<SearchParams> | SearchParams | und
   return input ? await Promise.resolve(input) : {}
 }
 
-async function loadCustomers(status: string, serviceType: string) {
+async function loadCustomers(status: string, serviceType: string, keyword: string) {
   const supabase = getServiceClient()
   if (!supabase) return { items: [] as CustomerRow[], error: 'supabase_not_configured' }
 
@@ -55,7 +55,21 @@ async function loadCustomers(status: string, serviceType: string) {
 
   const { data, error } = await query
   if (error) return { items: [] as CustomerRow[], error: error.message }
-  return { items: (data || []) as CustomerRow[], error: null }
+  const normalized = keyword.trim().toLowerCase()
+  const items = ((data || []) as CustomerRow[]).filter((customer) => {
+    if (!normalized) return true
+    return [
+      customer.full_name,
+      customer.parent_name,
+      customer.child_name,
+      customer.grade,
+      customer.region,
+      customer.team_name,
+      customer.memo,
+      ...(customer.line_account_names || []),
+    ].filter(Boolean).join(' ').toLowerCase().includes(normalized)
+  })
+  return { items, error: null }
 }
 
 function serviceLabel(value: string) {
@@ -92,13 +106,14 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
   const token = valueOf(params.token)
   const status = valueOf(params.status)
   const serviceType = valueOf(params.service_type)
+  const keyword = valueOf(params.q)
   const requiredToken = process.env.AI_SECRETARY_READ_TOKEN
 
   if (!requiredToken || token !== requiredToken) {
     return <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900">閲覧トークンが必要です。</div>
   }
 
-  const { items, error } = await loadCustomers(status, serviceType)
+  const { items, error } = await loadCustomers(status, serviceType, keyword)
 
   return (
     <div className="space-y-5">
@@ -108,12 +123,31 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
           <h2 className="text-2xl font-black text-gray-900">顧客マスタ</h2>
           <p className="mt-1 text-sm text-gray-500">LINE受信から自動作成された顧客を管理します。送信はしません。</p>
         </div>
-        <Link href={`/admin/ai-secretary/line-inbox?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">LINE未対応へ</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/admin/ai-secretary/dashboard?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">今日の対応へ</Link>
+          <Link href={`/admin/ai-secretary/line-inbox?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">LINE未対応へ</Link>
+        </div>
       </div>
+
+      <form className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:grid-cols-[1fr_auto_auto]">
+        <input type="hidden" name="token" value={token} />
+        <input type="hidden" name="status" value={status} />
+        <input name="q" defaultValue={keyword} placeholder="氏名・保護者・子ども・地域・所属チームで検索" className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100" />
+        <select name="service_type" defaultValue={serviceType} className="rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100">
+          <option value="">全サービス</option>
+          <option value="private_lesson">個人レッスン</option>
+          <option value="ashiwaza_dribble">足技塾</option>
+          <option value="sysc">SYSC</option>
+          <option value="kids_school">キッズスクール</option>
+          <option value="overseas">海外</option>
+          <option value="unknown">未分類</option>
+        </select>
+        <button className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-bold text-white">検索</button>
+      </form>
 
       <div className="flex flex-wrap gap-2 text-xs font-bold">
         {[['', '全件'], ['new_inquiry', '新規'], ['trial_scheduling', '体験調整'], ['enrolled', '入会'], ['continuing', '継続'], ['withdrawn', '退会']].map(([key, label]) => (
-          <Link key={key} href={`/admin/ai-secretary/customers?token=${encodeURIComponent(token)}&status=${key}&service_type=${serviceType}`} className={`rounded-full px-3 py-2 ${status === key ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200'}`}>{label}</Link>
+          <Link key={key} href={`/admin/ai-secretary/customers?token=${encodeURIComponent(token)}&status=${key}&service_type=${serviceType}&q=${encodeURIComponent(keyword)}`} className={`rounded-full px-3 py-2 ${status === key ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 ring-1 ring-gray-200'}`}>{label}</Link>
         ))}
       </div>
 

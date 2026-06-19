@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { CustomerEditor } from '@/components/ai-secretary/CustomerEditor'
+import { CustomerRevenueActions } from '@/components/ai-secretary/CustomerRevenueActions'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -90,6 +91,15 @@ type SalesCandidate = {
   ai_reason: string | null
 }
 
+type Product = {
+  id: string
+  name: string
+  product_type: string
+  ticket_count: number | null
+  price: number | null
+  monthly_fee: number | null
+}
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -117,6 +127,7 @@ async function loadCustomer(id: string) {
       ticketUsage: [] as TicketUsage[],
       followTasks: [] as FollowTask[],
       salesCandidates: [] as SalesCandidate[],
+      products: [] as Product[],
       error: 'supabase_not_configured',
     }
   }
@@ -129,6 +140,7 @@ async function loadCustomer(id: string) {
     { data: ticketUsage, error: ticketUsageError },
     { data: followTasks, error: followTasksError },
     { data: salesCandidates, error: salesCandidatesError },
+    { data: products, error: productsError },
   ] = await Promise.all([
     supabase.from('customers').select('*').eq('id', id).single(),
     supabase.from('customer_timeline_events').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
@@ -137,9 +149,10 @@ async function loadCustomer(id: string) {
     supabase.from('ticket_usage').select('*').eq('customer_id', id).order('usage_date', { ascending: false }).limit(100),
     supabase.from('follow_tasks').select('*').eq('customer_id', id).order('due_date', { ascending: true, nullsFirst: false }).limit(100),
     supabase.from('ai_secretary_sales_candidates').select('*').eq('customer_id', id).limit(100),
+    supabase.from('products').select('id,name,product_type,ticket_count,price,monthly_fee').eq('is_active', true).order('service_type', { ascending: true }),
   ])
 
-  const error = customerError?.message || timelineError?.message || linesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || null
+  const error = customerError?.message || timelineError?.message || linesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || null
   return {
     customer: customer as Customer | null,
     timeline: (timeline || []) as TimelineEvent[],
@@ -148,6 +161,7 @@ async function loadCustomer(id: string) {
     ticketUsage: (ticketUsage || []) as TicketUsage[],
     followTasks: (followTasks || []) as FollowTask[],
     salesCandidates: (salesCandidates || []) as SalesCandidate[],
+    products: (products || []) as Product[],
     error,
   }
 }
@@ -206,7 +220,7 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
     return <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900">閲覧トークンが必要です。</div>
   }
 
-  const { customer, timeline, lines, contracts, ticketUsage, followTasks, salesCandidates, error } = await loadCustomer(id)
+  const { customer, timeline, lines, contracts, ticketUsage, followTasks, salesCandidates, products, error } = await loadCustomer(id)
 
   if (error || !customer) {
     return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">顧客読み取りエラー: {error || 'not_found'}</div>
@@ -224,6 +238,8 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
       </div>
 
       <CustomerEditor customer={customer} token={token} />
+
+      <CustomerRevenueActions customerId={customer.id} token={token} products={products} contracts={contracts} followTasks={followTasks} />
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">

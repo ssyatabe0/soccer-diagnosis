@@ -89,6 +89,11 @@ CREATE TABLE IF NOT EXISTS gmail_sync_sources (
   to_email TEXT,
   subject TEXT,
   snippet TEXT,
+  direction TEXT DEFAULT 'inbound' CHECK (direction IN ('inbound', 'outbound')),
+  status TEXT DEFAULT 'needs_review' CHECK (status IN ('needs_review', 'replied', 'ignored', 'handled')),
+  needs_reply BOOLEAN DEFAULT TRUE,
+  ai_summary TEXT,
+  ai_reply_draft TEXT,
   occurred_at TIMESTAMPTZ,
   imported_at TIMESTAMPTZ DEFAULT NOW(),
   raw_payload JSONB
@@ -103,6 +108,10 @@ CREATE TABLE IF NOT EXISTS calendar_sync_sources (
   location TEXT,
   starts_at TIMESTAMPTZ,
   ends_at TIMESTAMPTZ,
+  event_type TEXT DEFAULT 'lesson' CHECK (event_type IN ('lesson', 'trial', 'meeting', 'other')),
+  status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'unknown')),
+  ticket_usage_candidate BOOLEAN DEFAULT FALSE,
+  ai_summary TEXT,
   imported_at TIMESTAMPTZ DEFAULT NOW(),
   raw_payload JSONB
 );
@@ -181,7 +190,7 @@ CREATE TABLE IF NOT EXISTS follow_tasks (
   id BIGSERIAL PRIMARY KEY,
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL,
-  task_type TEXT NOT NULL CHECK (task_type IN ('remaining_1', 'remaining_2', 'expiry_30', 'expiry_14', 'expiry_7', 'unused_90', 'trial_follow', 'review_request', 'ashiwaza_candidate', 'sysc_candidate', 'private_lesson_reproposal', 'manual')),
+  task_type TEXT NOT NULL CHECK (task_type IN ('remaining_1', 'remaining_2', 'expiry_30', 'expiry_14', 'expiry_7', 'unused_90', 'trial_follow', 'review_request', 'ashiwaza_candidate', 'sysc_candidate', 'kids_school_candidate', 'private_lesson_reproposal', 'manual')),
   title TEXT NOT NULL,
   due_date DATE,
   status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done', 'dismissed')),
@@ -196,7 +205,7 @@ CREATE TABLE IF NOT EXISTS sales_pipeline (
   id BIGSERIAL PRIMARY KEY,
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
   contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL,
-  opportunity_type TEXT NOT NULL CHECK (opportunity_type IN ('renewal', 'expiry_follow', 'unused_follow', 'review_request', 'ashiwaza_candidate', 'sysc_candidate', 'private_lesson_reproposal', 'monthly_retention', 'manual')),
+  opportunity_type TEXT NOT NULL CHECK (opportunity_type IN ('renewal', 'expiry_follow', 'unused_follow', 'review_request', 'ashiwaza_candidate', 'sysc_candidate', 'kids_school_candidate', 'private_lesson_reproposal', 'monthly_retention', 'manual')),
   title TEXT NOT NULL,
   stage TEXT NOT NULL DEFAULT 'candidate' CHECK (stage IN ('candidate', 'proposed', 'negotiating', 'won', 'lost', 'deferred')),
   expected_amount INTEGER,
@@ -208,6 +217,19 @@ CREATE TABLE IF NOT EXISTS sales_pipeline (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE gmail_sync_sources
+  ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'inbound' CHECK (direction IN ('inbound', 'outbound')),
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'needs_review' CHECK (status IN ('needs_review', 'replied', 'ignored', 'handled')),
+  ADD COLUMN IF NOT EXISTS needs_reply BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS ai_summary TEXT,
+  ADD COLUMN IF NOT EXISTS ai_reply_draft TEXT;
+
+ALTER TABLE calendar_sync_sources
+  ADD COLUMN IF NOT EXISTS event_type TEXT DEFAULT 'lesson' CHECK (event_type IN ('lesson', 'trial', 'meeting', 'other')),
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'unknown')),
+  ADD COLUMN IF NOT EXISTS ticket_usage_candidate BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS ai_summary TEXT;
+
 CREATE INDEX IF NOT EXISTS idx_customers_service_type ON customers(service_type);
 CREATE INDEX IF NOT EXISTS idx_customers_status ON customers(status);
 CREATE INDEX IF NOT EXISTS idx_customers_last_contact_at ON customers(last_contact_at DESC);
@@ -215,7 +237,9 @@ CREATE INDEX IF NOT EXISTS idx_customer_line_accounts_customer_id ON customer_li
 CREATE INDEX IF NOT EXISTS idx_customer_line_accounts_line_user ON customer_line_accounts(account_key, line_user_id);
 CREATE INDEX IF NOT EXISTS idx_customer_timeline_customer_at ON customer_timeline_events(customer_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_gmail_sync_customer ON gmail_sync_sources(customer_id);
+CREATE INDEX IF NOT EXISTS idx_gmail_sync_status ON gmail_sync_sources(status, needs_reply);
 CREATE INDEX IF NOT EXISTS idx_calendar_sync_customer ON calendar_sync_sources(customer_id);
+CREATE INDEX IF NOT EXISTS idx_calendar_sync_starts_at ON calendar_sync_sources(starts_at);
 CREATE INDEX IF NOT EXISTS idx_products_service_type ON products(service_type);
 CREATE INDEX IF NOT EXISTS idx_contracts_customer_id ON contracts(customer_id);
 CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);
@@ -226,6 +250,16 @@ CREATE INDEX IF NOT EXISTS idx_follow_tasks_due_status ON follow_tasks(status, d
 CREATE INDEX IF NOT EXISTS idx_follow_tasks_customer ON follow_tasks(customer_id);
 CREATE INDEX IF NOT EXISTS idx_sales_pipeline_customer ON sales_pipeline(customer_id);
 CREATE INDEX IF NOT EXISTS idx_sales_pipeline_month_stage ON sales_pipeline(expected_month, stage);
+
+ALTER TABLE follow_tasks DROP CONSTRAINT IF EXISTS follow_tasks_task_type_check;
+ALTER TABLE follow_tasks
+  ADD CONSTRAINT follow_tasks_task_type_check
+  CHECK (task_type IN ('remaining_1', 'remaining_2', 'expiry_30', 'expiry_14', 'expiry_7', 'unused_90', 'trial_follow', 'review_request', 'ashiwaza_candidate', 'sysc_candidate', 'kids_school_candidate', 'private_lesson_reproposal', 'manual'));
+
+ALTER TABLE sales_pipeline DROP CONSTRAINT IF EXISTS sales_pipeline_opportunity_type_check;
+ALTER TABLE sales_pipeline
+  ADD CONSTRAINT sales_pipeline_opportunity_type_check
+  CHECK (opportunity_type IN ('renewal', 'expiry_follow', 'unused_follow', 'review_request', 'ashiwaza_candidate', 'sysc_candidate', 'kids_school_candidate', 'private_lesson_reproposal', 'monthly_retention', 'manual'));
 
 CREATE TABLE IF NOT EXISTS line_messages (
   id BIGSERIAL PRIMARY KEY,
@@ -275,6 +309,19 @@ ALTER TABLE line_messages
   ADD COLUMN IF NOT EXISTS service_category TEXT DEFAULT 'unknown',
   ADD COLUMN IF NOT EXISTS customer_status TEXT DEFAULT 'new_inquiry',
   ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
+
+ALTER TABLE gmail_sync_sources
+  ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'inbound' CHECK (direction IN ('inbound', 'outbound')),
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'needs_review' CHECK (status IN ('needs_review', 'replied', 'ignored', 'handled')),
+  ADD COLUMN IF NOT EXISTS needs_reply BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS ai_summary TEXT,
+  ADD COLUMN IF NOT EXISTS ai_reply_draft TEXT;
+
+ALTER TABLE calendar_sync_sources
+  ADD COLUMN IF NOT EXISTS event_type TEXT DEFAULT 'lesson' CHECK (event_type IN ('lesson', 'trial', 'meeting', 'other')),
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'completed', 'cancelled', 'unknown')),
+  ADD COLUMN IF NOT EXISTS ticket_usage_candidate BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS ai_summary TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_line_messages_customer_id ON line_messages(customer_id);
 CREATE INDEX IF NOT EXISTS idx_line_messages_service_category ON line_messages(service_category);
@@ -624,30 +671,27 @@ relationship_candidates AS (
     c.service_type AS customer_service_type,
     c.status AS customer_status,
     NULL::UUID AS contract_id,
-    CASE
-      WHEN c.status IN ('continuing', 'enrolled') THEN 'review_request'
-      WHEN c.service_type = 'private_lesson' THEN 'ashiwaza_candidate'
-      WHEN c.service_type IN ('kids_school', 'ashiwaza_dribble', 'private_lesson') THEN 'sysc_candidate'
-      WHEN c.status IN ('withdrawn', 'paused', 'considering') THEN 'private_lesson_reproposal'
-      ELSE NULL
-    END AS candidate_type,
+    candidates.candidate_type,
     NULL::TEXT AS product_name,
     NULL::INTEGER AS remaining_count,
     NULL::DATE AS effective_valid_until,
     NULL::INTEGER AS expected_amount,
     DATE_TRUNC('month', CURRENT_DATE)::DATE AS expected_month,
     CASE
-      WHEN c.status IN ('continuing', 'enrolled') THEN 'medium'
+      WHEN candidates.candidate_type IN ('review_request', 'ashiwaza_candidate', 'sysc_candidate') THEN 'medium'
       ELSE 'low'
     END AS priority,
-    CASE
-      WHEN c.status IN ('continuing', 'enrolled') THEN '関係性が継続中のため、レビュー依頼候補です。'
-      WHEN c.service_type = 'private_lesson' THEN '個人レッスン利用者のため、足技塾への誘導候補です。'
-      WHEN c.service_type IN ('kids_school', 'ashiwaza_dribble', 'private_lesson') THEN '育成サービス利用者のため、SYSC提案候補です。'
-      WHEN c.status IN ('withdrawn', 'paused', 'considering') THEN '休会・退会・検討中のため、個人レッスン再提案候補です。'
-      ELSE NULL
-    END AS ai_reason
+    candidates.ai_reason
   FROM customers c
+  CROSS JOIN LATERAL (
+    VALUES
+      ('review_request', '関係性が継続中のため、レビュー依頼候補です。', c.status IN ('continuing', 'enrolled')),
+      ('ashiwaza_candidate', '個人レッスン利用者のため、足技塾への誘導候補です。', c.service_type = 'private_lesson'),
+      ('sysc_candidate', '育成サービス利用者のため、SYSC提案候補です。', c.service_type IN ('kids_school', 'ashiwaza_dribble', 'private_lesson')),
+      ('kids_school_candidate', '低学年・初回問い合わせ層のため、キッズスクール提案候補です。', c.service_type IN ('unknown', 'private_lesson') AND c.status IN ('new_inquiry', 'trial_scheduling', 'considering')),
+      ('private_lesson_reproposal', '休会・退会・検討中のため、個人レッスン再提案候補です。', c.status IN ('withdrawn', 'paused', 'considering'))
+  ) AS candidates(candidate_type, ai_reason, is_target)
+  WHERE candidates.is_target
 )
 SELECT *
 FROM contract_candidates
