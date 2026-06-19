@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const MAIL_TO = process.env.MAIL_TO || 'ssyatabe0@gmail.com';
 
 export async function POST(request: NextRequest) {
@@ -24,6 +23,12 @@ export async function POST(request: NextRequest) {
     if (!name || !email) {
       return NextResponse.json({ error: 'お名前とメールアドレスは必須です' }, { status: 400 });
     }
+
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json({ error: 'RESEND_API_KEY が未設定です' }, { status: 500 });
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     const subject = `【サッカー診断問い合わせ】${typeName} / ${resultId}`;
 

@@ -10,27 +10,31 @@ export default function ResultFallback({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(`diagnosis-result-${id}`);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        const type = DIAGNOSIS_TYPES.find(t => t.id === saved.typeId) || DIAGNOSIS_TYPES[0];
-        const tags: TargetTag[] = saved.tags || [];
-        setResult({
-          id: saved.id,
-          type,
-          lane: saved.lane as Lane,
-          tags,
-          subLabels: tags.map(t => SUB_LABELS[t]),
-          totalScore: saved.totalScore,
-          answers: saved.answers,
-          createdAt: saved.createdAt,
-        });
+    const timer = window.setTimeout(() => {
+      try {
+        const raw = localStorage.getItem(`diagnosis-result-${id}`);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          const type = DIAGNOSIS_TYPES.find(t => t.id === saved.typeId) || DIAGNOSIS_TYPES[0];
+          const tags: TargetTag[] = saved.tags || [];
+          setResult({
+            id: saved.id,
+            type,
+            lane: saved.lane as Lane,
+            tags,
+            subLabels: tags.map(t => SUB_LABELS[t]),
+            totalScore: saved.totalScore,
+            answers: saved.answers,
+            createdAt: saved.createdAt,
+          });
+        }
+      } catch (e) {
+        console.error('localStorage fallback error:', e);
       }
-    } catch (e) {
-      console.error('localStorage fallback error:', e);
-    }
-    setLoading(false);
+      setLoading(false);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [id]);
 
   if (loading) {

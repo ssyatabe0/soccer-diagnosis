@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { DIAGNOSIS_TYPES, QUESTIONS } from '@/lib/constants';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const MAIL_TO = process.env.MAIL_TO || 'ssyatabe0@gmail.com';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { resultId, typeId, typeName, lane, tags, totalScore, answers, createdAt } = body;
+
+    if (!process.env.RESEND_API_KEY) {
+      return NextResponse.json({ error: 'RESEND_API_KEY is not configured' }, { status: 500 });
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     const type = DIAGNOSIS_TYPES.find(t => t.id === typeId) || DIAGNOSIS_TYPES[0];
 

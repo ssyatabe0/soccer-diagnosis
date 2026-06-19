@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { saveLineMessageForAiSecretary } from '@/lib/line-ai-secretary'
 
 const CTA = `
 さらに具体的な改善方法は
@@ -334,16 +335,35 @@ export async function POST(req: NextRequest) {
 
 「突進型」など一言送ってください。`
 
-      await fetch('https://api.line.me/v2/bot/message/reply', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-        },
-        body: JSON.stringify({
-          replyToken,
-          messages: [{ type: 'text', text: replyText }],
-        }),
+      let lineReplyStatus: number | undefined
+      let lineReplyOk: boolean | undefined
+
+      try {
+        const lineReplyResponse = await fetch('https://api.line.me/v2/bot/message/reply', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+          },
+          body: JSON.stringify({
+            replyToken,
+            messages: [{ type: 'text', text: replyText }],
+          }),
+        })
+        lineReplyStatus = lineReplyResponse.status
+        lineReplyOk = lineReplyResponse.ok
+      } catch (lineReplyError) {
+        console.error('line reply error:', lineReplyError)
+        lineReplyOk = false
+      }
+
+      await saveLineMessageForAiSecretary({
+        event,
+        text,
+        extractedType: type,
+        autoReplyText: replyText,
+        lineReplyStatus,
+        lineReplyOk,
       })
     }
 
