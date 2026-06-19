@@ -6,6 +6,8 @@
 
 この段階では `保存`、`分類`、`要約`、`返信下書き`、`返信文コピー` まで行う。LINEへの自動送信、ワンタップ送信、一斉配信、顧客統合確定は行わない。
 
+`LINE_AUTO_REPLY_ENABLED` を `true` にしない限り、WebhookはLINE返信APIを呼ばない。
+
 ## 本番で使うURL
 
 - LINE Webhook: `https://soccer-diagnosis.vercel.app/api/line/webhook`
@@ -31,6 +33,7 @@
    - `LINE_CHANNEL_SECRET`
    - `LINE_ACCOUNT_KEY=soccer_private_lesson`
    - `LINE_ACCOUNT_DESTINATION_MAP` 任意。LINEのdestinationで自動識別したい場合に使うJSON。
+   - `LINE_AUTO_REPLY_ENABLED=false`
    - `ADMIN_USER` 管理画面ID。`admin` は使わない。
    - `ADMIN_PASSWORD` 管理画面Password。長いランダム文字列にする。
    - `AI_SECRETARY_READ_TOKEN` 管理画面URL/API用の長いランダム文字列。
@@ -121,6 +124,7 @@ LINE Developersで各アカウントを開き、`Messaging API settings` のWebh
 - 未対応LINE一覧に受信日時・種別・AI要約・返信下書きが出る。
 - 返信文コピー後、送信前に谷田部が内容確認する。
 - 自動送信やワンタップ送信はまだ使わない。
+- `LINE_AUTO_REPLY_ENABLED` が `false` または未設定になっている。
 - Secret keyを外部に貼った場合はSupabaseで再発行してVercelへ差し替える。
 
 ## 現在できること

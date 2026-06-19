@@ -88,6 +88,8 @@ Vercelの環境変数に上記の値を設定してください。
 
 現在のAI秘書は、LINE公式から届いた問い合わせを `保存`、`分類`、`AI要約`、`返信下書き`、`返信文コピー` まで行う。LINEへの自動送信、ワンタップ送信、一斉配信はまだ行わない。
 
+`LINE_AUTO_REPLY_ENABLED` を `true` にしない限り、WebhookはLINE返信APIを呼ばない。
+
 ### 必須環境変数
 
 ```env
@@ -97,6 +99,7 @@ AI_SECRETARY_READ_TOKEN=your-long-random-read-token
 AI_SECRETARY_DISABLED=false
 SUPABASE_SERVICE_ROLE_KEY=your-rotated-supabase-secret-key
 LINE_ACCOUNT_KEY=soccer_private_lesson
+LINE_AUTO_REPLY_ENABLED=false
 ```
 
 `ADMIN_USER` と `ADMIN_PASSWORD` が未設定の場合、管理画面は開かない。`admin / admin` は使わない。

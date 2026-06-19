@@ -15,6 +15,8 @@ https://soccer-kateikyousi.com/
 お気軽にご相談ください。
 `
 
+const LINE_AUTO_REPLY_ENABLED = process.env.LINE_AUTO_REPLY_ENABLED === 'true'
+
 function extractType(text: string): string | null {
   const normalized = text
     .replace(/\r/g, '')
@@ -354,23 +356,25 @@ export async function POST(req: NextRequest) {
       let lineReplyStatus: number | undefined
       let lineReplyOk: boolean | undefined
 
-      try {
-        const lineReplyResponse = await fetch('https://api.line.me/v2/bot/message/reply', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-          },
-          body: JSON.stringify({
-            replyToken,
-            messages: [{ type: 'text', text: replyText }],
-          }),
-        })
-        lineReplyStatus = lineReplyResponse.status
-        lineReplyOk = lineReplyResponse.ok
-      } catch (lineReplyError) {
-        console.error('line reply error:', lineReplyError)
-        lineReplyOk = false
+      if (LINE_AUTO_REPLY_ENABLED && replyToken && process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+        try {
+          const lineReplyResponse = await fetch('https://api.line.me/v2/bot/message/reply', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+            },
+            body: JSON.stringify({
+              replyToken,
+              messages: [{ type: 'text', text: replyText }],
+            }),
+          })
+          lineReplyStatus = lineReplyResponse.status
+          lineReplyOk = lineReplyResponse.ok
+        } catch (lineReplyError) {
+          console.error('line reply error:', lineReplyError)
+          lineReplyOk = false
+        }
       }
 
       await saveLineMessageForAiSecretary({
