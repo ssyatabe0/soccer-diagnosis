@@ -29,17 +29,41 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params
 
-  const [{ data: customer, error: customerError }, { data: timeline, error: timelineError }, { data: lines, error: linesError }] = await Promise.all([
+  const [
+    { data: customer, error: customerError },
+    { data: timeline, error: timelineError },
+    { data: lines, error: linesError },
+    { data: contracts, error: contractsError },
+    { data: ticketUsage, error: ticketUsageError },
+    { data: followTasks, error: followTasksError },
+    { data: salesCandidates, error: salesCandidatesError },
+  ] = await Promise.all([
     supabase.from('customers').select('*').eq('id', id).single(),
     supabase.from('customer_timeline_events').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
     supabase.from('ai_secretary_line_inbox').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
+    supabase.from('ai_secretary_contracts').select('*').eq('customer_id', id).order('purchase_date', { ascending: false, nullsFirst: false }).limit(100),
+    supabase.from('ticket_usage').select('*').eq('customer_id', id).order('usage_date', { ascending: false }).limit(100),
+    supabase.from('follow_tasks').select('*').eq('customer_id', id).order('due_date', { ascending: true, nullsFirst: false }).limit(100),
+    supabase.from('ai_secretary_sales_candidates').select('*').eq('customer_id', id).limit(100),
   ])
 
   if (customerError) return NextResponse.json({ error: customerError.message }, { status: 500 })
   if (timelineError) return NextResponse.json({ error: timelineError.message }, { status: 500 })
   if (linesError) return NextResponse.json({ error: linesError.message }, { status: 500 })
+  if (contractsError) return NextResponse.json({ error: contractsError.message }, { status: 500 })
+  if (ticketUsageError) return NextResponse.json({ error: ticketUsageError.message }, { status: 500 })
+  if (followTasksError) return NextResponse.json({ error: followTasksError.message }, { status: 500 })
+  if (salesCandidatesError) return NextResponse.json({ error: salesCandidatesError.message }, { status: 500 })
 
-  return NextResponse.json({ customer, timeline: timeline || [], line_messages: lines || [] })
+  return NextResponse.json({
+    customer,
+    timeline: timeline || [],
+    line_messages: lines || [],
+    contracts: contracts || [],
+    ticket_usage: ticketUsage || [],
+    follow_tasks: followTasks || [],
+    sales_candidates: salesCandidates || [],
+  })
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

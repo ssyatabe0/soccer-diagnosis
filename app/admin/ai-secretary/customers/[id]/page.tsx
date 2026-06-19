@@ -44,6 +44,52 @@ type LineMessage = {
   occurred_at: string
 }
 
+type Contract = {
+  id: string
+  product_name: string | null
+  product_type: string | null
+  status: string
+  purchase_date: string | null
+  start_date: string | null
+  first_usage_date: string | null
+  effective_valid_until: string | null
+  total_ticket_count: number | null
+  total_used_count: number | null
+  remaining_count: number | null
+  amount: number | null
+  monthly_fee: number | null
+  payment_status: string | null
+  notes: string | null
+}
+
+type TicketUsage = {
+  id: number
+  contract_id: string
+  usage_date: string
+  used_count: number
+  lesson_title: string | null
+  notes: string | null
+}
+
+type FollowTask = {
+  id: number
+  task_type: string
+  title: string
+  due_date: string | null
+  status: string
+  priority: string
+  ai_reason: string | null
+}
+
+type SalesCandidate = {
+  candidate_type: string
+  product_name: string | null
+  remaining_count: number | null
+  effective_valid_until: string | null
+  priority: string
+  ai_reason: string | null
+}
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -62,16 +108,48 @@ async function getSearchParams(input: Promise<SearchParams> | SearchParams | und
 
 async function loadCustomer(id: string) {
   const supabase = getServiceClient()
-  if (!supabase) return { customer: null, timeline: [] as TimelineEvent[], lines: [] as LineMessage[], error: 'supabase_not_configured' }
+  if (!supabase) {
+    return {
+      customer: null,
+      timeline: [] as TimelineEvent[],
+      lines: [] as LineMessage[],
+      contracts: [] as Contract[],
+      ticketUsage: [] as TicketUsage[],
+      followTasks: [] as FollowTask[],
+      salesCandidates: [] as SalesCandidate[],
+      error: 'supabase_not_configured',
+    }
+  }
 
-  const [{ data: customer, error: customerError }, { data: timeline, error: timelineError }, { data: lines, error: linesError }] = await Promise.all([
+  const [
+    { data: customer, error: customerError },
+    { data: timeline, error: timelineError },
+    { data: lines, error: linesError },
+    { data: contracts, error: contractsError },
+    { data: ticketUsage, error: ticketUsageError },
+    { data: followTasks, error: followTasksError },
+    { data: salesCandidates, error: salesCandidatesError },
+  ] = await Promise.all([
     supabase.from('customers').select('*').eq('id', id).single(),
     supabase.from('customer_timeline_events').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
     supabase.from('ai_secretary_line_inbox').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
+    supabase.from('ai_secretary_contracts').select('*').eq('customer_id', id).order('purchase_date', { ascending: false, nullsFirst: false }).limit(100),
+    supabase.from('ticket_usage').select('*').eq('customer_id', id).order('usage_date', { ascending: false }).limit(100),
+    supabase.from('follow_tasks').select('*').eq('customer_id', id).order('due_date', { ascending: true, nullsFirst: false }).limit(100),
+    supabase.from('ai_secretary_sales_candidates').select('*').eq('customer_id', id).limit(100),
   ])
 
-  const error = customerError?.message || timelineError?.message || linesError?.message || null
-  return { customer: customer as Customer | null, timeline: (timeline || []) as TimelineEvent[], lines: (lines || []) as LineMessage[], error }
+  const error = customerError?.message || timelineError?.message || linesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || null
+  return {
+    customer: customer as Customer | null,
+    timeline: (timeline || []) as TimelineEvent[],
+    lines: (lines || []) as LineMessage[],
+    contracts: (contracts || []) as Contract[],
+    ticketUsage: (ticketUsage || []) as TicketUsage[],
+    followTasks: (followTasks || []) as FollowTask[],
+    salesCandidates: (salesCandidates || []) as SalesCandidate[],
+    error,
+  }
 }
 
 function formatDate(value: string | null) {
@@ -93,6 +171,32 @@ function eventLabel(type: string) {
   return labels[type] || type
 }
 
+function candidateLabel(type: string) {
+  const labels: Record<string, string> = {
+    remaining_1: '残り1回',
+    remaining_2: '残り2回',
+    expiry_30: '期限30日前',
+    expiry_14: '期限14日前',
+    expiry_7: '期限7日前',
+    unused_90: '90日未利用',
+    review_request: 'レビュー依頼候補',
+    ashiwaza_candidate: '足技塾候補',
+    sysc_candidate: 'SYSC候補',
+    private_lesson_reproposal: '個人レッスン再提案候補',
+  }
+  return labels[type] || type
+}
+
+function formatDateOnly(value: string | null) {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value))
+}
+
+function formatYen(value: number | null) {
+  if (value === null || value === undefined) return '-'
+  return `${value.toLocaleString()}円`
+}
+
 export default async function AiSecretaryCustomerDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<SearchParams> | SearchParams }) {
   const [{ id }, query] = await Promise.all([params, getSearchParams(searchParams)])
   const token = valueOf(query.token)
@@ -102,7 +206,7 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
     return <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900">閲覧トークンが必要です。</div>
   }
 
-  const { customer, timeline, lines, error } = await loadCustomer(id)
+  const { customer, timeline, lines, contracts, ticketUsage, followTasks, salesCandidates, error } = await loadCustomer(id)
 
   if (error || !customer) {
     return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">顧客読み取りエラー: {error || 'not_found'}</div>
@@ -120,6 +224,109 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
       </div>
 
       <CustomerEditor customer={customer} token={token} />
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-black text-gray-900">売上・契約サマリー</h3>
+            <p className="mt-1 text-xs text-gray-500">契約履歴、購入履歴、残回数、有効期限、フォロー候補を確認します。</p>
+          </div>
+          <Link href={`/admin/ai-secretary/revenue?token=${encodeURIComponent(token)}`} className="rounded-full bg-green-700 px-4 py-2 text-sm font-bold text-white">売上候補一覧へ</Link>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl bg-green-50 p-4 text-green-900">
+            <p className="text-xs font-bold opacity-70">契約数</p>
+            <p className="mt-1 text-3xl font-black">{contracts.length}</p>
+          </div>
+          <div className="rounded-xl bg-yellow-50 p-4 text-yellow-900">
+            <p className="text-xs font-bold opacity-70">未完了フォロー</p>
+            <p className="mt-1 text-3xl font-black">{followTasks.filter((task) => task.status === 'open').length}</p>
+          </div>
+          <div className="rounded-xl bg-blue-50 p-4 text-blue-900">
+            <p className="text-xs font-bold opacity-70">AI売上候補</p>
+            <p className="mt-1 text-3xl font-black">{salesCandidates.length}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-black text-gray-900">契約履歴・購入履歴</h3>
+        <div className="mt-4 space-y-3">
+          {contracts.map((contract) => (
+            <div key={contract.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white">{contract.status}</span>
+                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-700">{contract.product_name || contract.product_type || '契約'}</span>
+                <span className="text-xs font-bold text-gray-500">購入 {formatDateOnly(contract.purchase_date)}</span>
+                <span className="text-xs font-bold text-gray-500">期限 {formatDateOnly(contract.effective_valid_until)}</span>
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-4">
+                <MiniStat label="購入回数" value={contract.total_ticket_count === null ? '-' : `${contract.total_ticket_count}回`} />
+                <MiniStat label="消化回数" value={contract.total_used_count === null ? '-' : `${contract.total_used_count}回`} />
+                <MiniStat label="残回数" value={contract.remaining_count === null ? '-' : `${contract.remaining_count}回`} />
+                <MiniStat label="金額/月謝" value={contract.amount !== null ? formatYen(contract.amount) : formatYen(contract.monthly_fee)} />
+              </div>
+              {contract.notes && <p className="mt-3 rounded-lg bg-white p-3 text-sm leading-7 text-gray-700">{contract.notes}</p>}
+            </div>
+          ))}
+          {contracts.length === 0 && <p className="text-sm text-gray-500">契約履歴はまだありません。</p>}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-black text-gray-900">AI売上・再提案候補</h3>
+        <div className="mt-4 space-y-3">
+          {salesCandidates.map((candidate, index) => (
+            <div key={`${candidate.candidate_type}-${index}`} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white">{candidateLabel(candidate.candidate_type)}</span>
+                <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-bold text-yellow-700">{candidate.priority}</span>
+                {candidate.remaining_count !== null && <span className="text-xs font-bold text-gray-500">残 {candidate.remaining_count}回</span>}
+                {candidate.effective_valid_until && <span className="text-xs font-bold text-gray-500">期限 {formatDateOnly(candidate.effective_valid_until)}</span>}
+              </div>
+              {candidate.ai_reason && <p className="mt-3 rounded-lg bg-white p-3 text-sm leading-7 text-gray-700">{candidate.ai_reason}</p>}
+            </div>
+          ))}
+          {salesCandidates.length === 0 && <p className="text-sm text-gray-500">AI売上候補はまだありません。</p>}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-black text-gray-900">フォロー履歴</h3>
+        <div className="mt-4 space-y-3">
+          {followTasks.map((task) => (
+            <div key={task.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white">{candidateLabel(task.task_type)}</span>
+                <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700">{task.status}</span>
+                <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs font-bold text-yellow-700">{task.priority}</span>
+                <span className="text-xs font-bold text-gray-500">期限 {formatDateOnly(task.due_date)}</span>
+              </div>
+              <p className="mt-3 font-bold text-gray-900">{task.title}</p>
+              {task.ai_reason && <p className="mt-2 rounded-lg bg-white p-3 text-sm leading-7 text-gray-700">{task.ai_reason}</p>}
+            </div>
+          ))}
+          {followTasks.length === 0 && <p className="text-sm text-gray-500">フォロー履歴はまだありません。</p>}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-black text-gray-900">回数消化履歴</h3>
+        <div className="mt-4 space-y-3">
+          {ticketUsage.map((usage) => (
+            <div key={usage.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-bold text-white">{formatDateOnly(usage.usage_date)}</span>
+                <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-bold text-green-700">{usage.used_count}回消化</span>
+              </div>
+              {usage.lesson_title && <p className="mt-3 font-bold text-gray-900">{usage.lesson_title}</p>}
+              {usage.notes && <p className="mt-2 rounded-lg bg-white p-3 text-sm leading-7 text-gray-700">{usage.notes}</p>}
+            </div>
+          ))}
+          {ticketUsage.length === 0 && <p className="text-sm text-gray-500">回数消化履歴はまだありません。</p>}
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <h3 className="text-lg font-black text-gray-900">顧客タイムライン</h3>
@@ -157,6 +364,15 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
           {lines.length === 0 && <p className="text-sm text-gray-500">LINE履歴はまだありません。</p>}
         </div>
       </section>
+    </div>
+  )
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-white p-3">
+      <p className="text-xs font-bold text-gray-500">{label}</p>
+      <p className="mt-1 text-lg font-black text-gray-900">{value}</p>
     </div>
   )
 }

@@ -107,6 +107,107 @@ CREATE TABLE IF NOT EXISTS calendar_sync_sources (
   raw_payload JSONB
 );
 
+CREATE TABLE IF NOT EXISTS products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_key TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  service_type TEXT NOT NULL CHECK (service_type IN ('private_lesson', 'ashiwaza_dribble', 'sysc', 'kids_school', 'overseas', 'unknown')),
+  product_type TEXT NOT NULL CHECK (product_type IN ('ticket', 'monthly', 'diagnosis', 'intensive', 'other')),
+  ticket_count INTEGER,
+  validity_days INTEGER,
+  price INTEGER,
+  monthly_fee INTEGER,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO products (product_key, name, service_type, product_type, ticket_count, validity_days, price, monthly_fee, notes)
+VALUES
+  ('private_4_ticket', '個人レッスン 4回券', 'private_lesson', 'ticket', 4, 45, NULL, NULL, '初回利用日から45日'),
+  ('private_8_ticket', '個人レッスン 8回券', 'private_lesson', 'ticket', 8, 90, NULL, NULL, '初回利用日から90日'),
+  ('private_intensive', '個人レッスン 短期集中', 'private_lesson', 'intensive', NULL, NULL, NULL, NULL, '短期集中プラン'),
+  ('online_diagnosis', 'オンライン診断', 'private_lesson', 'diagnosis', NULL, NULL, NULL, NULL, 'オンライン診断'),
+  ('kids_school_monthly', 'キッズスクール 月謝', 'kids_school', 'monthly', NULL, NULL, NULL, NULL, '在籍・退会・月謝管理'),
+  ('ashiwaza_monthly', '足技塾 月謝', 'ashiwaza_dribble', 'monthly', NULL, NULL, NULL, NULL, '在籍・退会・月謝管理'),
+  ('sysc_monthly', 'SYSC 月謝', 'sysc', 'monthly', NULL, NULL, NULL, NULL, '在籍・退会・月謝管理')
+ON CONFLICT (product_key) DO UPDATE SET
+  name = EXCLUDED.name,
+  service_type = EXCLUDED.service_type,
+  product_type = EXCLUDED.product_type,
+  ticket_count = EXCLUDED.ticket_count,
+  validity_days = EXCLUDED.validity_days,
+  price = EXCLUDED.price,
+  monthly_fee = EXCLUDED.monthly_fee,
+  notes = EXCLUDED.notes,
+  updated_at = NOW();
+
+CREATE TABLE IF NOT EXISTS contracts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  contract_type TEXT NOT NULL DEFAULT 'ticket' CHECK (contract_type IN ('ticket', 'monthly', 'diagnosis', 'intensive', 'other')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('draft', 'active', 'completed', 'paused', 'cancelled', 'expired')),
+  purchase_date DATE DEFAULT CURRENT_DATE,
+  start_date DATE,
+  first_usage_date DATE,
+  valid_until DATE,
+  end_date DATE,
+  purchased_count INTEGER,
+  used_count INTEGER NOT NULL DEFAULT 0,
+  amount INTEGER,
+  monthly_fee INTEGER,
+  payment_status TEXT NOT NULL DEFAULT 'unknown' CHECK (payment_status IN ('unknown', 'unpaid', 'paid', 'refunded')),
+  source TEXT NOT NULL DEFAULT 'manual',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ticket_usage (
+  id BIGSERIAL PRIMARY KEY,
+  contract_id UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  usage_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  used_count INTEGER NOT NULL DEFAULT 1,
+  lesson_title TEXT,
+  source TEXT NOT NULL DEFAULT 'manual',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS follow_tasks (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL,
+  task_type TEXT NOT NULL CHECK (task_type IN ('remaining_1', 'remaining_2', 'expiry_30', 'expiry_14', 'expiry_7', 'unused_90', 'trial_follow', 'review_request', 'ashiwaza_candidate', 'sysc_candidate', 'private_lesson_reproposal', 'manual')),
+  title TEXT NOT NULL,
+  due_date DATE,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done', 'dismissed')),
+  priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('high', 'medium', 'low')),
+  ai_reason TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sales_pipeline (
+  id BIGSERIAL PRIMARY KEY,
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  contract_id UUID REFERENCES contracts(id) ON DELETE SET NULL,
+  opportunity_type TEXT NOT NULL CHECK (opportunity_type IN ('renewal', 'expiry_follow', 'unused_follow', 'review_request', 'ashiwaza_candidate', 'sysc_candidate', 'private_lesson_reproposal', 'monthly_retention', 'manual')),
+  title TEXT NOT NULL,
+  stage TEXT NOT NULL DEFAULT 'candidate' CHECK (stage IN ('candidate', 'proposed', 'negotiating', 'won', 'lost', 'deferred')),
+  expected_amount INTEGER,
+  expected_month DATE,
+  priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('high', 'medium', 'low')),
+  ai_reason TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_customers_service_type ON customers(service_type);
 CREATE INDEX IF NOT EXISTS idx_customers_status ON customers(status);
 CREATE INDEX IF NOT EXISTS idx_customers_last_contact_at ON customers(last_contact_at DESC);
@@ -115,6 +216,16 @@ CREATE INDEX IF NOT EXISTS idx_customer_line_accounts_line_user ON customer_line
 CREATE INDEX IF NOT EXISTS idx_customer_timeline_customer_at ON customer_timeline_events(customer_id, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_gmail_sync_customer ON gmail_sync_sources(customer_id);
 CREATE INDEX IF NOT EXISTS idx_calendar_sync_customer ON calendar_sync_sources(customer_id);
+CREATE INDEX IF NOT EXISTS idx_products_service_type ON products(service_type);
+CREATE INDEX IF NOT EXISTS idx_contracts_customer_id ON contracts(customer_id);
+CREATE INDEX IF NOT EXISTS idx_contracts_status ON contracts(status);
+CREATE INDEX IF NOT EXISTS idx_contracts_valid_until ON contracts(valid_until);
+CREATE INDEX IF NOT EXISTS idx_ticket_usage_contract_id ON ticket_usage(contract_id);
+CREATE INDEX IF NOT EXISTS idx_ticket_usage_customer_date ON ticket_usage(customer_id, usage_date DESC);
+CREATE INDEX IF NOT EXISTS idx_follow_tasks_due_status ON follow_tasks(status, due_date);
+CREATE INDEX IF NOT EXISTS idx_follow_tasks_customer ON follow_tasks(customer_id);
+CREATE INDEX IF NOT EXISTS idx_sales_pipeline_customer ON sales_pipeline(customer_id);
+CREATE INDEX IF NOT EXISTS idx_sales_pipeline_month_stage ON sales_pipeline(expected_month, stage);
 
 CREATE TABLE IF NOT EXISTS line_messages (
   id BIGSERIAL PRIMARY KEY,
@@ -176,6 +287,11 @@ ALTER TABLE customer_line_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_timeline_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE gmail_sync_sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_sync_sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ticket_usage ENABLE ROW LEVEL SECURITY;
+ALTER TABLE follow_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sales_pipeline ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Service role full access line_messages" ON line_messages;
 CREATE POLICY "Service role full access line_messages"
@@ -204,6 +320,26 @@ CREATE POLICY "Service role full access gmail_sync_sources"
 DROP POLICY IF EXISTS "Service role full access calendar_sync_sources" ON calendar_sync_sources;
 CREATE POLICY "Service role full access calendar_sync_sources"
   ON calendar_sync_sources FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access products" ON products;
+CREATE POLICY "Service role full access products"
+  ON products FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access contracts" ON contracts;
+CREATE POLICY "Service role full access contracts"
+  ON contracts FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access ticket_usage" ON ticket_usage;
+CREATE POLICY "Service role full access ticket_usage"
+  ON ticket_usage FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access follow_tasks" ON follow_tasks;
+CREATE POLICY "Service role full access follow_tasks"
+  ON follow_tasks FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access sales_pipeline" ON sales_pipeline;
+CREATE POLICY "Service role full access sales_pipeline"
+  ON sales_pipeline FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
 
 -- 既存LINE履歴を顧客マスタへ復元する。
 -- 同じ公式アカウント内の同じLINEユーザーIDを1顧客候補として扱い、
@@ -381,3 +517,142 @@ FROM customers c
 LEFT JOIN line_messages lm ON lm.customer_id = c.id
 LEFT JOIN line_accounts la ON la.account_key = lm.account_key
 GROUP BY c.id;
+
+DROP VIEW IF EXISTS ai_secretary_sales_candidates;
+
+DROP VIEW IF EXISTS ai_secretary_contracts;
+
+CREATE OR REPLACE VIEW ai_secretary_contracts AS
+WITH usage_totals AS (
+  SELECT
+    contract_id,
+    SUM(used_count)::INTEGER AS usage_used_count,
+    MAX(usage_date) AS last_usage_date
+  FROM ticket_usage
+  GROUP BY contract_id
+)
+SELECT
+  ct.*,
+  p.product_key,
+  p.name AS product_name,
+  p.service_type AS product_service_type,
+  p.product_type,
+  p.ticket_count AS product_ticket_count,
+  p.validity_days AS product_validity_days,
+  COALESCE(ct.purchased_count, p.ticket_count, 0) AS total_ticket_count,
+  COALESCE(ct.used_count, 0) + COALESCE(ut.usage_used_count, 0) AS total_used_count,
+  GREATEST(COALESCE(ct.purchased_count, p.ticket_count, 0) - (COALESCE(ct.used_count, 0) + COALESCE(ut.usage_used_count, 0)), 0) AS remaining_count,
+  COALESCE(
+    ct.valid_until,
+    CASE
+      WHEN p.validity_days IS NOT NULL AND ct.first_usage_date IS NOT NULL THEN ct.first_usage_date + p.validity_days
+      WHEN p.validity_days IS NOT NULL AND ct.start_date IS NOT NULL THEN ct.start_date + p.validity_days
+      ELSE NULL
+    END
+  ) AS effective_valid_until,
+  COALESCE(ut.last_usage_date, ct.first_usage_date) AS last_usage_date
+FROM contracts ct
+LEFT JOIN products p ON p.id = ct.product_id
+LEFT JOIN usage_totals ut ON ut.contract_id = ct.id;
+
+CREATE OR REPLACE VIEW ai_secretary_sales_candidates AS
+WITH contract_base AS (
+  SELECT
+    c.id AS customer_id,
+    c.full_name,
+    c.parent_name,
+    c.child_name,
+    c.service_type AS customer_service_type,
+    c.status AS customer_status,
+    c.last_contact_at,
+    ac.id AS contract_id,
+    ac.product_name,
+    ac.product_type,
+    ac.status AS contract_status,
+    ac.remaining_count,
+    ac.effective_valid_until,
+    ac.last_usage_date,
+    ac.amount,
+    ac.monthly_fee
+  FROM customers c
+  LEFT JOIN ai_secretary_contracts ac ON ac.customer_id = c.id
+),
+contract_candidates AS (
+  SELECT
+    customer_id,
+    full_name,
+    parent_name,
+    child_name,
+    customer_service_type,
+    customer_status,
+    contract_id,
+    CASE
+      WHEN remaining_count = 1 THEN 'remaining_1'
+      WHEN remaining_count = 2 THEN 'remaining_2'
+      WHEN effective_valid_until IS NOT NULL AND effective_valid_until BETWEEN CURRENT_DATE AND CURRENT_DATE + 7 THEN 'expiry_7'
+      WHEN effective_valid_until IS NOT NULL AND effective_valid_until BETWEEN CURRENT_DATE + 8 AND CURRENT_DATE + 14 THEN 'expiry_14'
+      WHEN effective_valid_until IS NOT NULL AND effective_valid_until BETWEEN CURRENT_DATE + 15 AND CURRENT_DATE + 30 THEN 'expiry_30'
+      WHEN COALESCE(last_usage_date, last_contact_at::DATE) <= CURRENT_DATE - 90 THEN 'unused_90'
+      ELSE NULL
+    END AS candidate_type,
+    product_name,
+    remaining_count,
+    effective_valid_until,
+    COALESCE(amount, monthly_fee) AS expected_amount,
+    DATE_TRUNC('month', CURRENT_DATE)::DATE AS expected_month,
+    CASE
+      WHEN remaining_count IN (1, 2) THEN 'high'
+      WHEN effective_valid_until IS NOT NULL AND effective_valid_until <= CURRENT_DATE + 14 THEN 'high'
+      ELSE 'medium'
+    END AS priority,
+    CASE
+      WHEN remaining_count = 1 THEN '残り1回。継続提案の優先度が高いです。'
+      WHEN remaining_count = 2 THEN '残り2回。次回提案の準備対象です。'
+      WHEN effective_valid_until IS NOT NULL AND effective_valid_until BETWEEN CURRENT_DATE AND CURRENT_DATE + 30 THEN '有効期限が30日以内です。期限前フォロー対象です。'
+      WHEN COALESCE(last_usage_date, last_contact_at::DATE) <= CURRENT_DATE - 90 THEN '90日以上利用または連絡が空いています。掘り起こし対象です。'
+      ELSE NULL
+    END AS ai_reason
+  FROM contract_base
+  WHERE contract_status IN ('active', 'paused')
+),
+relationship_candidates AS (
+  SELECT
+    c.id AS customer_id,
+    c.full_name,
+    c.parent_name,
+    c.child_name,
+    c.service_type AS customer_service_type,
+    c.status AS customer_status,
+    NULL::UUID AS contract_id,
+    CASE
+      WHEN c.status IN ('continuing', 'enrolled') THEN 'review_request'
+      WHEN c.service_type = 'private_lesson' THEN 'ashiwaza_candidate'
+      WHEN c.service_type IN ('kids_school', 'ashiwaza_dribble', 'private_lesson') THEN 'sysc_candidate'
+      WHEN c.status IN ('withdrawn', 'paused', 'considering') THEN 'private_lesson_reproposal'
+      ELSE NULL
+    END AS candidate_type,
+    NULL::TEXT AS product_name,
+    NULL::INTEGER AS remaining_count,
+    NULL::DATE AS effective_valid_until,
+    NULL::INTEGER AS expected_amount,
+    DATE_TRUNC('month', CURRENT_DATE)::DATE AS expected_month,
+    CASE
+      WHEN c.status IN ('continuing', 'enrolled') THEN 'medium'
+      ELSE 'low'
+    END AS priority,
+    CASE
+      WHEN c.status IN ('continuing', 'enrolled') THEN '関係性が継続中のため、レビュー依頼候補です。'
+      WHEN c.service_type = 'private_lesson' THEN '個人レッスン利用者のため、足技塾への誘導候補です。'
+      WHEN c.service_type IN ('kids_school', 'ashiwaza_dribble', 'private_lesson') THEN '育成サービス利用者のため、SYSC提案候補です。'
+      WHEN c.status IN ('withdrawn', 'paused', 'considering') THEN '休会・退会・検討中のため、個人レッスン再提案候補です。'
+      ELSE NULL
+    END AS ai_reason
+  FROM customers c
+)
+SELECT *
+FROM contract_candidates
+WHERE candidate_type IS NOT NULL
+UNION ALL
+SELECT *
+FROM relationship_candidates
+WHERE candidate_type IS NOT NULL;
