@@ -74,6 +74,31 @@ type CalendarSource = {
   ai_summary: string | null
 }
 
+type CaseRecord = {
+  id: string
+  case_code: string | null
+  problem: string | null
+  cause: string | null
+  improvement: string | null
+  result: string | null
+  publish_status: string
+  country: string | null
+  region: string | null
+  created_at: string
+}
+
+type CaseVideo = {
+  id: string
+  case_id: string | null
+  title: string
+  category: string | null
+  publish_status: string
+  youtube_url: string | null
+  short_url: string | null
+  description: string | null
+  filmed_at: string | null
+}
+
 type UsageCandidate = {
   id: number
   candidate_date: string
@@ -198,6 +223,8 @@ async function loadCustomer(id: string) {
       lines: [] as LineMessage[],
       gmail: [] as GmailSource[],
       calendar: [] as CalendarSource[],
+      cases: [] as CaseRecord[],
+      videos: [] as CaseVideo[],
       usageCandidates: [] as UsageCandidate[],
       contracts: [] as Contract[],
       ticketUsage: [] as TicketUsage[],
@@ -217,6 +244,8 @@ async function loadCustomer(id: string) {
     { data: lines, error: linesError },
     { data: gmail, error: gmailError },
     { data: calendar, error: calendarError },
+    { data: cases, error: casesError },
+    { data: videos, error: videosError },
     { data: usageCandidates, error: usageCandidatesError },
     { data: contracts, error: contractsError },
     { data: ticketUsage, error: ticketUsageError },
@@ -232,6 +261,8 @@ async function loadCustomer(id: string) {
     supabase.from('ai_secretary_line_inbox').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
     supabase.from('gmail_sync_sources').select('*').eq('customer_id', id).order('occurred_at', { ascending: false, nullsFirst: false }).limit(100),
     supabase.from('calendar_sync_sources').select('*').eq('customer_id', id).order('starts_at', { ascending: false, nullsFirst: false }).limit(100),
+    supabase.from('case_records').select('*').eq('customer_id', id).order('created_at', { ascending: false }).limit(100),
+    supabase.from('case_videos').select('*').eq('customer_id', id).order('created_at', { ascending: false }).limit(100),
     supabase.from('ai_secretary_calendar_usage_candidates').select('*').eq('customer_id', id).eq('status', 'pending').order('candidate_date', { ascending: false }).limit(100),
     supabase.from('ai_secretary_contracts').select('*').eq('customer_id', id).order('purchase_date', { ascending: false, nullsFirst: false }).limit(100),
     supabase.from('ticket_usage').select('*').eq('customer_id', id).order('usage_date', { ascending: false }).limit(100),
@@ -243,13 +274,15 @@ async function loadCustomer(id: string) {
     supabase.from('contract_documents').select('id,title,status,file_name,ai_suggestion,notes,created_at').eq('customer_id', id).order('created_at', { ascending: false }).limit(100),
   ])
 
-  const error = customerError?.message || timelineError?.message || linesError?.message || gmailError?.message || calendarError?.message || usageCandidatesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || aiProfileError?.message || contractTemplatesError?.message || contractDocumentsError?.message || null
+  const error = customerError?.message || timelineError?.message || linesError?.message || gmailError?.message || calendarError?.message || casesError?.message || videosError?.message || usageCandidatesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || aiProfileError?.message || contractTemplatesError?.message || contractDocumentsError?.message || null
   return {
     customer: customer as Customer | null,
     timeline: (timeline || []) as TimelineEvent[],
     lines: (lines || []) as LineMessage[],
     gmail: (gmail || []) as GmailSource[],
     calendar: (calendar || []) as CalendarSource[],
+    cases: (cases || []) as CaseRecord[],
+    videos: (videos || []) as CaseVideo[],
     usageCandidates: (usageCandidates || []) as UsageCandidate[],
     contracts: (contracts || []) as Contract[],
     ticketUsage: (ticketUsage || []) as TicketUsage[],
@@ -317,7 +350,7 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
     return <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900">閲覧トークンが必要です。</div>
   }
 
-  const { customer, timeline, lines, gmail, calendar, usageCandidates, contracts, ticketUsage, followTasks, salesCandidates, products, contractTemplates, contractDocuments, aiProfile, error } = await loadCustomer(id)
+  const { customer, timeline, lines, gmail, calendar, cases, videos, usageCandidates, contracts, ticketUsage, followTasks, salesCandidates, products, contractTemplates, contractDocuments, aiProfile, error } = await loadCustomer(id)
 
   if (error || !customer) {
     return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">顧客読み取りエラー: {error || 'not_found'}</div>
@@ -337,6 +370,51 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
       <CustomerEditor customer={customer} token={token} />
 
       <ContractDocumentActions customerId={customer.id} token={token} templates={contractTemplates} documents={contractDocuments} />
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h3 className="text-lg font-black text-gray-900">症例カルテ・動画</h3>
+            <p className="mt-1 text-xs text-gray-500">この顧客に紐付く症例、動画、記事/SNS素材の元データです。</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/admin/ai-secretary/cases?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">症例DBへ</Link>
+            <Link href={`/admin/ai-secretary/videos?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">動画DBへ</Link>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div className="space-y-3">
+            <p className="text-xs font-black text-gray-500">症例カルテ</p>
+            {cases.map((item) => (
+              <div key={item.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">{item.publish_status}</span>
+                  <span className="text-xs font-bold text-gray-500">{formatDate(item.created_at)}</span>
+                </div>
+                <p className="mt-3 font-bold text-gray-900">{item.problem || item.case_code || '症例カルテ'}</p>
+                {item.result && <p className="mt-2 rounded-lg bg-white p-3 text-sm leading-7 text-gray-700">結果: {item.result}</p>}
+              </div>
+            ))}
+            {cases.length === 0 && <p className="text-sm text-gray-500">症例カルテはまだありません。</p>}
+          </div>
+          <div className="space-y-3">
+            <p className="text-xs font-black text-gray-500">動画</p>
+            {videos.map((video) => (
+              <div key={video.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">{video.category || 'video'}</span>
+                  <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">{video.publish_status}</span>
+                  <span className="text-xs font-bold text-gray-500">{formatDateOnly(video.filmed_at)}</span>
+                </div>
+                <p className="mt-3 font-bold text-gray-900">{video.title}</p>
+                {video.youtube_url && <a href={video.youtube_url} target="_blank" rel="noreferrer" className="mt-2 inline-block rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-bold text-gray-700">YouTubeを見る</a>}
+              </div>
+            ))}
+            {videos.length === 0 && <p className="text-sm text-gray-500">動画はまだありません。</p>}
+          </div>
+        </div>
+      </section>
 
       <CalendarUsageCandidateActions token={token} candidates={usageCandidates} />
 

@@ -879,3 +879,92 @@ FROM calendar_ticket_usage_candidates ctu
 LEFT JOIN customers c ON c.id = ctu.customer_id
 LEFT JOIN ai_secretary_contracts ac ON ac.id = ctu.contract_id
 LEFT JOIN calendar_sync_sources cs ON cs.id = ctu.calendar_source_id;
+
+-- Phase9: 症例カルテ・動画・記事/SNS生成支援
+CREATE TABLE IF NOT EXISTS case_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_code TEXT UNIQUE DEFAULT ('CASE-' || UPPER(SUBSTRING(gen_random_uuid()::TEXT, 1, 8))),
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  age INTEGER,
+  grade TEXT,
+  position TEXT,
+  problem TEXT,
+  cause TEXT,
+  improvement TEXT,
+  result TEXT,
+  parent_feedback TEXT,
+  publish_status TEXT NOT NULL DEFAULT 'private' CHECK (publish_status IN ('private', 'permission_needed', 'public_allowed', 'published')),
+  country TEXT,
+  region TEXT,
+  tags TEXT[] DEFAULT '{}',
+  ai_summary TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS case_videos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  video_code TEXT UNIQUE DEFAULT ('VID-' || UPPER(SUBSTRING(gen_random_uuid()::TEXT, 1, 8))),
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  case_id UUID REFERENCES case_records(id) ON DELETE SET NULL,
+  filmed_at DATE,
+  title TEXT NOT NULL,
+  category TEXT DEFAULT 'lesson' CHECK (category IN ('lesson', 'case', 'short', 'youtube', 'sns', 'interview', 'other')),
+  publish_status TEXT NOT NULL DEFAULT 'private' CHECK (publish_status IN ('private', 'permission_needed', 'scheduled', 'published', 'unlisted')),
+  youtube_url TEXT,
+  short_url TEXT,
+  description TEXT,
+  thumbnail_idea TEXT,
+  sns_caption TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS generated_contents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_type TEXT NOT NULL CHECK (source_type IN ('case', 'video', 'customer', 'manual')),
+  source_id TEXT,
+  content_type TEXT NOT NULL CHECK (content_type IN ('blog_draft', 'case_article', 'seo_article', 'video_description', 'youtube_title', 'thumbnail_idea', 'sns_post')),
+  title TEXT,
+  body TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'reviewed', 'published', 'archived')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_case_records_customer ON case_records(customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_case_records_publish ON case_records(publish_status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_case_videos_case ON case_videos(case_id, filmed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_case_videos_customer ON case_videos(customer_id, filmed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_generated_contents_source ON generated_contents(source_type, source_id, created_at DESC);
+
+ALTER TABLE case_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE case_videos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE generated_contents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role full access case_records" ON case_records;
+CREATE POLICY "Service role full access case_records"
+  ON case_records FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access case_videos" ON case_videos;
+CREATE POLICY "Service role full access case_videos"
+  ON case_videos FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access generated_contents" ON generated_contents;
+CREATE POLICY "Service role full access generated_contents"
+  ON generated_contents FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP VIEW IF EXISTS ai_secretary_case_assets;
+CREATE OR REPLACE VIEW ai_secretary_case_assets AS
+SELECT
+  cr.*,
+  c.full_name,
+  c.parent_name,
+  c.child_name,
+  c.service_type,
+  COUNT(cv.id) AS video_count,
+  ARRAY_REMOVE(ARRAY_AGG(DISTINCT cv.youtube_url), NULL) AS youtube_urls
+FROM case_records cr
+LEFT JOIN customers c ON c.id = cr.customer_id
+LEFT JOIN case_videos cv ON cv.case_id = cr.id
+GROUP BY cr.id, c.full_name, c.parent_name, c.child_name, c.service_type;

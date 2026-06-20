@@ -18,6 +18,11 @@ const navItems = [
   { href: '/admin/ai-secretary/churn-risk', label: 'AI秘書 退会防止' },
   { href: '/admin/ai-secretary/contracts', label: 'AI秘書 契約書' },
   { href: '/admin/ai-secretary/search', label: 'AI秘書 自然文検索' },
+  { href: '/admin/ai-secretary/cases', label: 'AI秘書 症例DB' },
+  { href: '/admin/ai-secretary/videos', label: 'AI秘書 動画DB' },
+  { href: '/admin/ai-secretary/case-search', label: 'AI秘書 症例検索' },
+  { href: '/admin/ai-secretary/article-generator', label: 'AI秘書 記事生成' },
+  { href: '/admin/ai-secretary/sns-generator', label: 'AI秘書 SNS生成' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
