@@ -160,7 +160,12 @@ export default async function AiSecretaryRevenuePage({ searchParams }: { searchP
           <h2 className="text-2xl font-black text-gray-900">売上候補一覧</h2>
           <p className="mt-1 text-sm text-gray-500">回数券・期限・未利用・再提案候補を見て、今月動くべき相手を絞ります。</p>
         </div>
-        <Link href={`/admin/ai-secretary/customers?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">顧客マスタへ</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/admin/ai-secretary/today-sales?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">今日の営業へ</Link>
+          <Link href={`/admin/ai-secretary/reviews?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">レビュー候補へ</Link>
+          <Link href={`/admin/ai-secretary/churn-risk?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">退会防止へ</Link>
+          <Link href={`/admin/ai-secretary/customers?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">顧客マスタへ</Link>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
