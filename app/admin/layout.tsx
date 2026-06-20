@@ -35,6 +35,11 @@ const navItems = [
   { href: '/admin/ai-secretary/saas-pricing', label: 'SaaS料金' },
   { href: '/admin/ai-secretary/saas-api', label: 'SaaS API' },
   { href: '/admin/ai-secretary/saas-plan', label: '事業計画' },
+  { href: '/admin/ai-secretary/method-network', label: '認定ネットワーク' },
+  { href: '/admin/ai-secretary/coach-certification', label: '認定コーチ' },
+  { href: '/admin/ai-secretary/school-certification', label: '認定スクール' },
+  { href: '/admin/ai-secretary/national-cases', label: '全国症例DB' },
+  { href: '/admin/ai-secretary/referral-network', label: '紹介ネットワーク' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

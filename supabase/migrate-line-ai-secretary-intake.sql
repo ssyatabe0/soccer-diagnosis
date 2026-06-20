@@ -1323,3 +1323,169 @@ LEFT JOIN case_videos cv ON cv.tenant_id = t.id
 LEFT JOIN ai_diagnoses d ON d.tenant_id = t.id
 LEFT JOIN ai_proposals p ON p.tenant_id = t.id
 GROUP BY t.id;
+
+-- Phase15: 谷田部メソッド認定制度 / 全国ネットワーク
+CREATE TABLE IF NOT EXISTS method_certified_coaches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL,
+  coach_name TEXT NOT NULL,
+  email TEXT,
+  country TEXT DEFAULT 'Japan',
+  region TEXT,
+  languages TEXT[] DEFAULT ARRAY['ja'],
+  certification_rank TEXT NOT NULL DEFAULT 'candidate' CHECK (certification_rank IN ('candidate', 'bronze', 'silver', 'gold', 'master')),
+  case_understanding_score INTEGER DEFAULT 0 CHECK (case_understanding_score BETWEEN 0 AND 100),
+  diagnosis_score INTEGER DEFAULT 0 CHECK (diagnosis_score BETWEEN 0 AND 100),
+  proposal_score INTEGER DEFAULT 0 CHECK (proposal_score BETWEEN 0 AND 100),
+  total_score INTEGER DEFAULT 0 CHECK (total_score BETWEEN 0 AND 100),
+  assessment_summary TEXT,
+  next_training_focus TEXT,
+  status TEXT NOT NULL DEFAULT 'training' CHECK (status IN ('training', 'certified', 'paused', 'revoked')),
+  certified_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS method_certified_schools (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID UNIQUE REFERENCES saas_tenants(id) ON DELETE CASCADE,
+  school_name TEXT NOT NULL,
+  country TEXT DEFAULT 'Japan',
+  region TEXT,
+  certification_rank TEXT NOT NULL DEFAULT 'candidate' CHECK (certification_rank IN ('candidate', 'bronze', 'silver', 'gold', 'master')),
+  retention_rate NUMERIC(5,2) DEFAULT 0,
+  improvement_rate NUMERIC(5,2) DEFAULT 0,
+  review_score NUMERIC(3,2) DEFAULT 0,
+  contract_rate NUMERIC(5,2) DEFAULT 0,
+  assessment_summary TEXT,
+  required_improvement TEXT,
+  status TEXT NOT NULL DEFAULT 'reviewing' CHECK (status IN ('reviewing', 'certified', 'paused', 'revoked')),
+  certified_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS national_case_library (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_case_id UUID REFERENCES case_records(id) ON DELETE SET NULL,
+  source_tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL,
+  anonymized_code TEXT UNIQUE DEFAULT ('NCASE-' || UPPER(SUBSTRING(gen_random_uuid()::TEXT, 1, 8))),
+  age_band TEXT,
+  grade TEXT,
+  position TEXT,
+  concern TEXT,
+  cause_summary TEXT,
+  improvement_summary TEXT,
+  result_summary TEXT,
+  country TEXT,
+  region TEXT,
+  tags TEXT[] DEFAULT '{}',
+  publish_scope TEXT NOT NULL DEFAULT 'network' CHECK (publish_scope IN ('network', 'public', 'internal_training')),
+  ai_learning_weight NUMERIC(4,2) DEFAULT 1.00,
+  status TEXT NOT NULL DEFAULT 'reviewing' CHECK (status IN ('reviewing', 'approved', 'hidden', 'rejected')),
+  approved_by TEXT,
+  approved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ai_diagnosis_feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL,
+  diagnosis_id UUID REFERENCES ai_diagnoses(id) ON DELETE SET NULL,
+  matched_case_id UUID REFERENCES national_case_library(id) ON DELETE SET NULL,
+  predicted_cause TEXT,
+  actual_cause TEXT,
+  accuracy_score INTEGER CHECK (accuracy_score BETWEEN 0 AND 100),
+  coach_feedback TEXT,
+  used_for_training BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS referral_network_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL,
+  coach_certification_id UUID REFERENCES method_certified_coaches(id) ON DELETE SET NULL,
+  school_certification_id UUID REFERENCES method_certified_schools(id) ON DELETE SET NULL,
+  display_name TEXT NOT NULL,
+  entry_type TEXT NOT NULL CHECK (entry_type IN ('coach', 'school', 'club', 'academy')),
+  country TEXT DEFAULT 'Japan',
+  region TEXT,
+  city TEXT,
+  service_types TEXT[] DEFAULT '{}',
+  certification_rank TEXT NOT NULL DEFAULT 'candidate' CHECK (certification_rank IN ('candidate', 'bronze', 'silver', 'gold', 'master')),
+  referral_priority INTEGER DEFAULT 50 CHECK (referral_priority BETWEEN 0 AND 100),
+  contact_policy TEXT DEFAULT 'introduce_by_yatabe',
+  public_profile_status TEXT NOT NULL DEFAULT 'private' CHECK (public_profile_status IN ('private', 'ready', 'published')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE staff_training_metrics ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE quality_control_reviews ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+UPDATE staff_training_metrics SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+UPDATE quality_control_reviews SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+
+INSERT INTO method_certified_schools (tenant_id, school_name, country, region, certification_rank, retention_rate, improvement_rate, review_score, contract_rate, assessment_summary, status)
+SELECT id, name, country, '本部', 'master', 0, 0, 0, 0, '谷田部メソッド本部。認定制度と全国症例DBの基準テナント。', 'certified'
+FROM saas_tenants
+WHERE tenant_key = 'yatabe-method'
+ON CONFLICT (tenant_id) DO UPDATE SET school_name = EXCLUDED.school_name, certification_rank = EXCLUDED.certification_rank, updated_at = NOW();
+
+CREATE INDEX IF NOT EXISTS idx_method_certified_coaches_tenant ON method_certified_coaches(tenant_id, certification_rank, status);
+CREATE INDEX IF NOT EXISTS idx_method_certified_schools_rank ON method_certified_schools(certification_rank, status);
+CREATE INDEX IF NOT EXISTS idx_national_case_library_search ON national_case_library(status, publish_scope, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_referral_network_region ON referral_network_entries(country, region, certification_rank, public_profile_status);
+CREATE INDEX IF NOT EXISTS idx_ai_diagnosis_feedback_tenant ON ai_diagnosis_feedback(tenant_id, created_at DESC);
+
+ALTER TABLE method_certified_coaches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE method_certified_schools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE national_case_library ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_diagnosis_feedback ENABLE ROW LEVEL SECURITY;
+ALTER TABLE referral_network_entries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role full access method_certified_coaches" ON method_certified_coaches;
+CREATE POLICY "Service role full access method_certified_coaches" ON method_certified_coaches FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Service role full access method_certified_schools" ON method_certified_schools;
+CREATE POLICY "Service role full access method_certified_schools" ON method_certified_schools FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Service role full access national_case_library" ON national_case_library;
+CREATE POLICY "Service role full access national_case_library" ON national_case_library FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Service role full access ai_diagnosis_feedback" ON ai_diagnosis_feedback;
+CREATE POLICY "Service role full access ai_diagnosis_feedback" ON ai_diagnosis_feedback FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Service role full access referral_network_entries" ON referral_network_entries;
+CREATE POLICY "Service role full access referral_network_entries" ON referral_network_entries FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP VIEW IF EXISTS method_network_dashboard;
+CREATE OR REPLACE VIEW method_network_dashboard AS
+SELECT
+  COUNT(DISTINCT t.id) AS tenant_count,
+  COUNT(DISTINCT cc.id) AS certified_coach_count,
+  COUNT(DISTINCT cs.id) AS certified_school_count,
+  COUNT(DISTINCT ncl.id) AS national_case_count,
+  COUNT(DISTINCT rne.id) AS referral_entry_count,
+  COALESCE(AVG(NULLIF(cc.total_score, 0)), 0) AS avg_coach_score,
+  COALESCE(AVG(NULLIF(cs.retention_rate, 0)), 0) AS avg_retention_rate,
+  COALESCE(AVG(NULLIF(f.accuracy_score, 0)), 0) AS avg_diagnosis_accuracy
+FROM saas_tenants t
+LEFT JOIN method_certified_coaches cc ON cc.tenant_id = t.id AND cc.status = 'certified'
+LEFT JOIN method_certified_schools cs ON cs.tenant_id = t.id AND cs.status = 'certified'
+LEFT JOIN national_case_library ncl ON ncl.source_tenant_id = t.id AND ncl.status = 'approved'
+LEFT JOIN referral_network_entries rne ON rne.tenant_id = t.id AND rne.public_profile_status IN ('ready', 'published')
+LEFT JOIN ai_diagnosis_feedback f ON f.tenant_id = t.id;
+
+DROP VIEW IF EXISTS certified_referral_network;
+CREATE OR REPLACE VIEW certified_referral_network AS
+SELECT
+  rne.*,
+  t.name AS tenant_name,
+  COALESCE(cc.total_score, 0) AS coach_score,
+  COALESCE(cs.retention_rate, 0) AS school_retention_rate,
+  COALESCE(cs.improvement_rate, 0) AS school_improvement_rate
+FROM referral_network_entries rne
+LEFT JOIN saas_tenants t ON t.id = rne.tenant_id
+LEFT JOIN method_certified_coaches cc ON cc.id = rne.coach_certification_id
+LEFT JOIN method_certified_schools cs ON cs.id = rne.school_certification_id
+WHERE rne.public_profile_status IN ('ready', 'published');
