@@ -968,3 +968,103 @@ FROM case_records cr
 LEFT JOIN customers c ON c.id = cr.customer_id
 LEFT JOIN case_videos cv ON cv.case_id = cr.id
 GROUP BY cr.id, c.full_name, c.parent_name, c.child_name, c.service_type;
+
+-- Phase10: AI診断センター・提案書・契約候補生成
+CREATE TABLE IF NOT EXISTS ai_diagnoses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  source_type TEXT NOT NULL DEFAULT 'manual' CHECK (source_type IN ('line', 'gmail', 'form', 'video', 'parent_consultation', 'manual')),
+  source_id TEXT,
+  source_text TEXT NOT NULL,
+  concern_type TEXT,
+  cause_candidates TEXT[] DEFAULT '{}',
+  improvement_priorities TEXT[] DEFAULT '{}',
+  similar_case_ids UUID[] DEFAULT '{}',
+  related_video_ids UUID[] DEFAULT '{}',
+  related_article_ids UUID[] DEFAULT '{}',
+  recommended_service TEXT,
+  recommended_plan TEXT,
+  next_step TEXT,
+  ai_summary TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'reviewed', 'proposed', 'archived')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ai_proposals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  diagnosis_id UUID REFERENCES ai_diagnoses(id) ON DELETE CASCADE,
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  title TEXT,
+  current_issue TEXT,
+  inferred_causes TEXT,
+  improvement_plan TEXT,
+  similar_cases TEXT,
+  recommended_service TEXT,
+  recommended_plan TEXT,
+  price_note TEXT,
+  next_steps TEXT,
+  body TEXT,
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'reviewed', 'sent_ready', 'archived')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS ai_contract_candidates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  diagnosis_id UUID REFERENCES ai_diagnoses(id) ON DELETE CASCADE,
+  proposal_id UUID REFERENCES ai_proposals(id) ON DELETE CASCADE,
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+  service_type TEXT,
+  product_name TEXT,
+  plan_name TEXT,
+  estimated_amount INTEGER,
+  confidence TEXT NOT NULL DEFAULT 'medium' CHECK (confidence IN ('high', 'medium', 'low')),
+  ai_reason TEXT,
+  status TEXT NOT NULL DEFAULT 'candidate' CHECK (status IN ('candidate', 'reviewed', 'converted', 'dismissed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ai_diagnoses_customer ON ai_diagnoses(customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_diagnoses_source ON ai_diagnoses(source_type, source_id);
+CREATE INDEX IF NOT EXISTS idx_ai_proposals_customer ON ai_proposals(customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_contract_candidates_customer ON ai_contract_candidates(customer_id, created_at DESC);
+
+ALTER TABLE ai_diagnoses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_proposals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_contract_candidates ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role full access ai_diagnoses" ON ai_diagnoses;
+CREATE POLICY "Service role full access ai_diagnoses"
+  ON ai_diagnoses FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access ai_proposals" ON ai_proposals;
+CREATE POLICY "Service role full access ai_proposals"
+  ON ai_proposals FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access ai_contract_candidates" ON ai_contract_candidates;
+CREATE POLICY "Service role full access ai_contract_candidates"
+  ON ai_contract_candidates FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP VIEW IF EXISTS ai_secretary_diagnosis_center;
+CREATE OR REPLACE VIEW ai_secretary_diagnosis_center AS
+SELECT
+  d.*,
+  c.full_name,
+  c.parent_name,
+  c.child_name,
+  c.service_type AS customer_service_type,
+  c.status AS customer_status,
+  p.id AS proposal_id,
+  p.title AS proposal_title,
+  p.status AS proposal_status,
+  cc.id AS contract_candidate_id,
+  cc.product_name AS contract_product_name,
+  cc.estimated_amount,
+  cc.confidence AS contract_confidence
+FROM ai_diagnoses d
+LEFT JOIN customers c ON c.id = d.customer_id
+LEFT JOIN ai_proposals p ON p.diagnosis_id = d.id
+LEFT JOIN ai_contract_candidates cc ON cc.diagnosis_id = d.id;

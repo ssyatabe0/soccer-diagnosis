@@ -23,6 +23,8 @@ const navItems = [
   { href: '/admin/ai-secretary/case-search', label: 'AI秘書 症例検索' },
   { href: '/admin/ai-secretary/article-generator', label: 'AI秘書 記事生成' },
   { href: '/admin/ai-secretary/sns-generator', label: 'AI秘書 SNS生成' },
+  { href: '/admin/ai-secretary/diagnosis-center', label: 'AI診断センター' },
+  { href: '/admin/ai-secretary/proposals', label: 'AI提案書' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
