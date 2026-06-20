@@ -1185,3 +1185,141 @@ FULL OUTER JOIN staff_training_metrics stm ON stm.customer_id = c.id
 LEFT JOIN case_records cr ON cr.customer_id = c.id
 LEFT JOIN ai_secretary_sales_candidates sp ON sp.customer_id = c.id
 GROUP BY COALESCE(NULLIF(c.owner_name, ''), stm.staff_name, '未設定');
+
+-- Phase14: 谷田部メソッドOS / SaaS マルチテナント基盤
+CREATE TABLE IF NOT EXISTS saas_tenants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_key TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  tenant_type TEXT NOT NULL DEFAULT 'school' CHECK (tenant_type IN ('individual_coach', 'school', 'club', 'academy', 'overseas_school', 'enterprise')),
+  country TEXT DEFAULT 'Japan',
+  language TEXT DEFAULT 'ja' CHECK (language IN ('ja', 'en', 'zh', 'ko', 'th')),
+  plan_key TEXT DEFAULT 'founder',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'trial', 'paused', 'cancelled')),
+  owner_email TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO saas_tenants (tenant_key, name, tenant_type, country, language, plan_key, status, owner_email, notes)
+VALUES ('yatabe-method', '谷田部メソッド', 'academy', 'Japan', 'ja', 'founder', 'active', 'ssyatabe0@gmail.com', '既存運用データのデフォルトテナント')
+ON CONFLICT (tenant_key) DO UPDATE SET name = EXCLUDED.name, updated_at = NOW();
+
+CREATE TABLE IF NOT EXISTS saas_pricing_plans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plan_key TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  target_user TEXT,
+  monthly_price_jpy INTEGER,
+  included_coaches INTEGER,
+  included_customers INTEGER,
+  included_ai_diagnoses INTEGER,
+  features TEXT[] DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'draft', 'archived')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO saas_pricing_plans (plan_key, name, target_user, monthly_price_jpy, included_coaches, included_customers, included_ai_diagnoses, features)
+VALUES
+  ('light', 'ライト', '個人コーチ', 9800, 1, 100, 50, ARRAY['AI秘書','顧客管理','AI診断','症例検索']),
+  ('standard', 'スタンダード', '小規模スクール', 29800, 3, 500, 300, ARRAY['AI秘書','顧客管理','契約管理','回数券管理','AI提案書','保護者相談']),
+  ('pro', 'プロ', '複数コーチ運用', 59800, 10, 2000, 1000, ARRAY['AI診断センター','症例ライブラリ','スタッフ教育','品質管理','売上管理']),
+  ('school', 'スクール', 'サッカースクール', 98000, 30, 5000, 3000, ARRAY['マルチ拠点','スタッフ管理','API連携','多言語']),
+  ('club', 'クラブ', 'クラブチーム/アカデミー', 198000, 80, 15000, 10000, ARRAY['クラブ運用','品質管理','選手カルテ','提案書','API']),
+  ('enterprise', 'エンタープライズ', '海外/大規模展開', NULL, NULL, NULL, NULL, ARRAY['専用環境','SLA','SSO','カスタムAI','多言語'])
+ON CONFLICT (plan_key) DO UPDATE SET name = EXCLUDED.name, monthly_price_jpy = EXCLUDED.monthly_price_jpy;
+
+CREATE TABLE IF NOT EXISTS saas_api_clients (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES saas_tenants(id) ON DELETE CASCADE,
+  client_name TEXT NOT NULL,
+  allowed_scopes TEXT[] DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'revoked')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS saas_feature_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL,
+  feature_area TEXT NOT NULL,
+  title TEXT NOT NULL,
+  priority TEXT DEFAULT 'medium' CHECK (priority IN ('high', 'medium', 'low')),
+  status TEXT DEFAULT 'planned' CHECK (status IN ('planned', 'building', 'released', 'deferred')),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE line_messages ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE gmail_sync_sources ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE case_records ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE case_videos ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE ai_diagnoses ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE ai_proposals ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE yatabe_method_knowledge ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES saas_tenants(id) ON DELETE SET NULL;
+ALTER TABLE yatabe_method_knowledge ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'tenant' CHECK (visibility IN ('tenant', 'shared_library', 'marketplace'));
+
+UPDATE customers SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+UPDATE line_messages SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+UPDATE gmail_sync_sources SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+UPDATE contracts SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+UPDATE case_records SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+UPDATE case_videos SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+UPDATE ai_diagnoses SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+UPDATE ai_proposals SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+UPDATE yatabe_method_knowledge SET tenant_id = (SELECT id FROM saas_tenants WHERE tenant_key = 'yatabe-method') WHERE tenant_id IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_line_messages_tenant ON line_messages(tenant_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_contracts_tenant ON contracts(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_case_records_tenant ON case_records(tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_diagnoses_tenant ON ai_diagnoses(tenant_id, created_at DESC);
+
+ALTER TABLE saas_tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saas_pricing_plans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saas_api_clients ENABLE ROW LEVEL SECURITY;
+ALTER TABLE saas_feature_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role full access saas_tenants" ON saas_tenants;
+CREATE POLICY "Service role full access saas_tenants" ON saas_tenants FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Service role full access saas_pricing_plans" ON saas_pricing_plans;
+CREATE POLICY "Service role full access saas_pricing_plans" ON saas_pricing_plans FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Service role full access saas_api_clients" ON saas_api_clients;
+CREATE POLICY "Service role full access saas_api_clients" ON saas_api_clients FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+DROP POLICY IF EXISTS "Service role full access saas_feature_requests" ON saas_feature_requests;
+CREATE POLICY "Service role full access saas_feature_requests" ON saas_feature_requests FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP VIEW IF EXISTS saas_tenant_dashboard;
+CREATE OR REPLACE VIEW saas_tenant_dashboard AS
+SELECT
+  t.id AS tenant_id,
+  t.tenant_key,
+  t.name,
+  t.tenant_type,
+  t.country,
+  t.language,
+  t.plan_key,
+  t.status,
+  COUNT(DISTINCT c.id) AS customer_count,
+  COUNT(DISTINCT lm.id) AS inquiry_count,
+  COUNT(DISTINCT ct.id) AS contract_count,
+  COUNT(DISTINCT CASE WHEN c.status IN ('continuing', 'enrolled') THEN c.id END) AS active_customer_count,
+  COUNT(DISTINCT CASE WHEN c.status = 'withdrawn' THEN c.id END) AS churn_customer_count,
+  COALESCE(SUM(ct.amount), 0) AS total_contract_amount,
+  COUNT(DISTINCT cr.id) AS case_count,
+  COUNT(DISTINCT cv.id) AS video_count,
+  COUNT(DISTINCT d.id) AS diagnosis_count,
+  COUNT(DISTINCT p.id) AS proposal_count
+FROM saas_tenants t
+LEFT JOIN customers c ON c.tenant_id = t.id
+LEFT JOIN line_messages lm ON lm.tenant_id = t.id
+LEFT JOIN contracts ct ON ct.tenant_id = t.id
+LEFT JOIN case_records cr ON cr.tenant_id = t.id
+LEFT JOIN case_videos cv ON cv.tenant_id = t.id
+LEFT JOIN ai_diagnoses d ON d.tenant_id = t.id
+LEFT JOIN ai_proposals p ON p.tenant_id = t.id
+GROUP BY t.id;

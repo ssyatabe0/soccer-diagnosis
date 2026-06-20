@@ -30,6 +30,11 @@ const navItems = [
   { href: '/admin/ai-secretary/parent-consultation', label: '保護者相談' },
   { href: '/admin/ai-secretary/staff-training', label: 'スタッフ教育' },
   { href: '/admin/ai-secretary/quality-control', label: '品質管理' },
+  { href: '/admin/ai-secretary/saas-os', label: 'メソッドOS' },
+  { href: '/admin/ai-secretary/tenant-dashboard', label: 'SaaS管理' },
+  { href: '/admin/ai-secretary/saas-pricing', label: 'SaaS料金' },
+  { href: '/admin/ai-secretary/saas-api', label: 'SaaS API' },
+  { href: '/admin/ai-secretary/saas-plan', label: '事業計画' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
