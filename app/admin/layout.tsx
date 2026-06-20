@@ -40,6 +40,17 @@ const navItems = [
   { href: '/admin/ai-secretary/school-certification', label: '認定スクール' },
   { href: '/admin/ai-secretary/national-cases', label: '全国症例DB' },
   { href: '/admin/ai-secretary/referral-network', label: '紹介ネットワーク' },
+  { href: '/admin/ai-secretary/global-expansion', label: '世界展開' },
+  { href: '/admin/ai-secretary/global-diagnosis', label: '海外診断' },
+  { href: '/admin/ai-secretary/world-cases', label: '世界症例DB' },
+  { href: '/admin/ai-secretary/overseas-camps', label: '海外キャンプ' },
+  { href: '/admin/ai-secretary/ai-translation', label: 'AI通訳' },
+  { href: '/admin/ai-secretary/soccer-hospital', label: 'サッカー病院' },
+  { href: '/admin/ai-secretary/medical-records', label: '電子カルテ' },
+  { href: '/admin/ai-secretary/prescriptions', label: 'AI処方箋' },
+  { href: '/admin/ai-secretary/improvement-prediction', label: '改善予測' },
+  { href: '/admin/ai-secretary/case-lab', label: '症例研究所' },
+  { href: '/admin/ai-secretary/soccer-university', label: 'サッカー大学' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
