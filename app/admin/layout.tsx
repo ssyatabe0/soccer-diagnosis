@@ -25,6 +25,11 @@ const navItems = [
   { href: '/admin/ai-secretary/sns-generator', label: 'AI秘書 SNS生成' },
   { href: '/admin/ai-secretary/diagnosis-center', label: 'AI診断センター' },
   { href: '/admin/ai-secretary/proposals', label: 'AI提案書' },
+  { href: '/admin/ai-secretary/coach-support', label: 'AIコーチ支援' },
+  { href: '/admin/ai-secretary/case-library', label: '症例ライブラリ' },
+  { href: '/admin/ai-secretary/parent-consultation', label: '保護者相談' },
+  { href: '/admin/ai-secretary/staff-training', label: 'スタッフ教育' },
+  { href: '/admin/ai-secretary/quality-control', label: '品質管理' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

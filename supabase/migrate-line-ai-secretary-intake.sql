@@ -1068,3 +1068,120 @@ FROM ai_diagnoses d
 LEFT JOIN customers c ON c.id = d.customer_id
 LEFT JOIN ai_proposals p ON p.diagnosis_id = d.id
 LEFT JOIN ai_contract_candidates cc ON cc.diagnosis_id = d.id;
+
+-- Phase13: 谷田部メソッド知識DB・AIコーチ支援・スタッフ教育・品質管理
+CREATE TABLE IF NOT EXISTS yatabe_method_knowledge (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category TEXT NOT NULL CHECK (category IN ('dribble', 'shoot', 'game_involvement', 'mental', 'selection', 'parent_support', 'lesson_quality', 'other')),
+  title TEXT NOT NULL,
+  problem_pattern TEXT,
+  cause_pattern TEXT,
+  coaching_points TEXT,
+  parent_explanation TEXT,
+  staff_checklist TEXT[] DEFAULT '{}',
+  related_tags TEXT[] DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'draft', 'archived')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO yatabe_method_knowledge (category, title, problem_pattern, cause_pattern, coaching_points, parent_explanation, staff_checklist, related_tags)
+VALUES
+  ('dribble', 'ドリブルで抜けない選手の初期診断', '相手を抜けない、ボールを失う、1対1で止まる', '相手との距離、身体の向き、仕掛けるタイミングが整理できていない', 'まず成功しやすい距離を作り、身体の向きとファーストタッチを修正。試合で使う判断条件までセットで教える。', '技術不足だけでなく、いつ仕掛けるかが分かると変化が出やすいです。', ARRAY['相手との距離を確認', '身体の向きを確認', '成功体験を作る', '試合で使う場面を説明'], ARRAY['ドリブル','抜けない','1対1']),
+  ('shoot', 'シュート・キック力改善', 'シュートが弱い、打てない、決定力がない', '軸足、踏み込み、ボールへの入り方、上半身の使い方に課題', '止まったボールから動いたボールへ段階化し、フォームより先に入る角度とタイミングを見る。', '力任せではなく、身体の使い方と入り方で強さが変わります。', ARRAY['軸足', '踏み込み', '上半身', '動いたボールで再現'], ARRAY['シュート','キック','決定力']),
+  ('game_involvement', '試合で消える選手の関与改善', '試合で消える、ボールに関われない、活躍できない', '立ち位置、受ける前の準備、判断の優先順位が曖昧', 'ボールを受ける前に見るものを決め、関わる位置とタイミングを整理する。', '試合で消える場合は技術より前に、どこに立つか・何を見るかが重要です。', ARRAY['立ち位置', '首振り', '受ける前の準備', '判断の優先順位'], ARRAY['試合','消える','関われない']),
+  ('mental', '自信がない選手への成功体験設計', '自信がない、消極的、チャレンジしない', '失敗経験が多く、成功する条件が本人の中で整理されていない', '難易度を落として成功条件を言語化し、成功を本人が再現できる形にする。', '自信は気合いではなく、できた理由が分かることで積み上がります。', ARRAY['成功条件を小さくする', 'できた理由を言語化', '否定より再現性', '保護者にも変化を共有'], ARRAY['自信','メンタル','消極的']),
+  ('parent_support', '保護者相談の基本姿勢', '焦り、不安、進路、セレクション、継続判断', '情報不足と比較により判断軸がぶれている', 'まず不安を整理し、現在地、優先順位、次の一手を短く提示する。', '今すぐ全部を解決するより、次に何を見るかを決めると動きやすくなります。', ARRAY['不安を否定しない', '現在地を整理', '次の一手を提示', '契約判断を急がせない'], ARRAY['保護者','相談','不安'])
+ON CONFLICT DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS staff_training_metrics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  staff_name TEXT NOT NULL,
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  case_id UUID REFERENCES case_records(id) ON DELETE SET NULL,
+  lesson_count INTEGER DEFAULT 0,
+  success_score INTEGER,
+  continuation_status TEXT,
+  review_status TEXT,
+  ai_feedback TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS quality_control_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_type TEXT NOT NULL CHECK (source_type IN ('line', 'gmail', 'proposal', 'lesson_note', 'manual')),
+  source_id TEXT,
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+  staff_name TEXT,
+  issue_type TEXT NOT NULL CHECK (issue_type IN ('insufficient_explanation', 'insufficient_proposal', 'missed_followup', 'tone_risk', 'missing_method', 'other')),
+  issue_summary TEXT,
+  yatabe_method_suggestion TEXT,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'reviewed', 'dismissed', 'fixed')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_yatabe_method_category ON yatabe_method_knowledge(category, status);
+CREATE INDEX IF NOT EXISTS idx_staff_training_staff ON staff_training_metrics(staff_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_quality_control_status ON quality_control_reviews(status, created_at DESC);
+
+ALTER TABLE yatabe_method_knowledge ENABLE ROW LEVEL SECURITY;
+ALTER TABLE staff_training_metrics ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quality_control_reviews ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role full access yatabe_method_knowledge" ON yatabe_method_knowledge;
+CREATE POLICY "Service role full access yatabe_method_knowledge"
+  ON yatabe_method_knowledge FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access staff_training_metrics" ON staff_training_metrics;
+CREATE POLICY "Service role full access staff_training_metrics"
+  ON staff_training_metrics FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP POLICY IF EXISTS "Service role full access quality_control_reviews" ON quality_control_reviews;
+CREATE POLICY "Service role full access quality_control_reviews"
+  ON quality_control_reviews FOR ALL TO service_role USING (TRUE) WITH CHECK (TRUE);
+
+DROP VIEW IF EXISTS ai_coach_lesson_support;
+CREATE OR REPLACE VIEW ai_coach_lesson_support AS
+SELECT
+  c.id AS customer_id,
+  c.full_name,
+  c.parent_name,
+  c.child_name,
+  c.grade,
+  c.team_name,
+  c.service_type,
+  c.status,
+  c.owner_name,
+  c.next_reservation_at,
+  c.memo,
+  p.overview AS ai_profile_overview,
+  p.pain_points,
+  p.caution_notes,
+  p.recommended_service,
+  COUNT(DISTINCT cr.id) AS case_count,
+  COUNT(DISTINCT d.id) AS diagnosis_count,
+  MAX(d.concern_type) AS latest_concern,
+  MAX(d.next_step) AS latest_next_step
+FROM customers c
+LEFT JOIN customer_ai_profiles p ON p.customer_id = c.id
+LEFT JOIN case_records cr ON cr.customer_id = c.id
+LEFT JOIN ai_diagnoses d ON d.customer_id = c.id
+GROUP BY c.id, p.overview, p.pain_points, p.caution_notes, p.recommended_service;
+
+DROP VIEW IF EXISTS staff_training_summary;
+CREATE OR REPLACE VIEW staff_training_summary AS
+SELECT
+  COALESCE(NULLIF(c.owner_name, ''), stm.staff_name, '未設定') AS staff_name,
+  COUNT(DISTINCT c.id) AS assigned_customers,
+  COUNT(DISTINCT cr.id) AS assigned_cases,
+  COUNT(DISTINCT CASE WHEN c.status IN ('continuing', 'enrolled') THEN c.id END) AS continuing_customers,
+  COUNT(DISTINCT CASE WHEN sp.candidate_type = 'review_request' THEN sp.customer_id END) AS review_candidates,
+  COUNT(DISTINCT stm.id) AS training_records,
+  AVG(stm.success_score) AS avg_success_score
+FROM customers c
+FULL OUTER JOIN staff_training_metrics stm ON stm.customer_id = c.id
+LEFT JOIN case_records cr ON cr.customer_id = c.id
+LEFT JOIN ai_secretary_sales_candidates sp ON sp.customer_id = c.id
+GROUP BY COALESCE(NULLIF(c.owner_name, ''), stm.staff_name, '未設定');
