@@ -12,7 +12,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const notes = cleanText(body?.notes)
 
   const { data: candidate, error: candidateError } = await supabase.from('calendar_ticket_usage_candidates').select('*').eq('id', id).single()
-  if (candidateError) return NextResponse.json({ error: candidateError.message }, { status: 500 })
+  if (candidateError) {
+    const status = candidateError.code === 'PGRST116' ? 404 : 500
+    return NextResponse.json({ error: candidateError.message }, { status })
+  }
   if (candidate.status !== 'pending') return NextResponse.json({ error: 'candidate_already_handled' }, { status: 400 })
 
   if (action === 'dismiss') {
