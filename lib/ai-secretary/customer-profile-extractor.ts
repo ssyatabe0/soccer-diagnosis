@@ -30,6 +30,8 @@ const STOP_WORDS = new Set([
   'サッカー', 'レッスン', '体験', '予約', '問い合わせ', 'お願いします', 'よろしく', '谷田部', '家庭教師', 'チーム', 'スクール', 'ドリブル', 'キッズ', 'SYSC', 'LINE', 'AI', '小学生', '中学生', '高校生', 'こんにちは', 'おはようございます', 'こんばんは', 'ありがとうございます', 'お世話になります', 'お世話になっております'
 ])
 
+const BAD_STANDALONE_NAME_PATTERN = /(お世話|すみません|大丈夫|先生|説明会|空いて|楽しかった|どう|明日|お疲れ|とても|AI秘書|開始|予約|確認|可能|参加|遅れ|申し訳|ありがとう|ご連絡|本日|昨日|明後日|今日|レッスン|体験)/
+
 function cleanValue(value: string | undefined | null) {
   if (!value) return ''
   return value
@@ -126,8 +128,10 @@ function extractStandaloneName(text: string) {
 
   for (const line of lines) {
     if (!isSafeName(line)) continue
-    if (/[？！!?]|(ます|です|ました|ください|お願い|可能|確認|予約|日程|レッスン|体験|参加|遅れ|申し訳|ありがとう|http|www|@)/.test(line)) continue
-    if (line.length >= 2 && line.length <= 10) return line
+    if (/[？！!?、。,.]|(ます|です|ました|ください|お願い|可能|確認|予約|日程|レッスン|体験|参加|遅れ|申し訳|ありがとう|http|www|@)/.test(line)) continue
+    if (BAD_STANDALONE_NAME_PATTERN.test(line)) continue
+    if (!/[一-龥]/.test(line)) continue
+    if (line.length >= 2 && line.length <= 8) return line
   }
   return ''
 }

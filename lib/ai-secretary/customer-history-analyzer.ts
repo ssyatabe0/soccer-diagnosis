@@ -85,7 +85,7 @@ export function analyzeCustomerHistory(sources: HistorySource[]): CustomerHistor
 
   const inquirySource = firstByKeyword(sorted, /問い合わせ|相談|興味|お願い|診断|体験|レッスン/)
   const trialSource = firstByKeyword(sorted, /体験|スタート診断|初回体験/)
-  const firstLessonSource = firstByKeyword(sorted, /初回レッスン|初回利用|初回|1回目|一回目|レッスン開始|開始|スタート|初レッスン|契約|回券/)
+  const firstLessonSource = firstByKeyword(sorted, /初回レッスン|初回利用|初レッスン|1回目|一回目|レッスン開始|初回.*(?:レッスン|指導)|(?:4回券|４回券|8回券|８回券).*(?:申込|申し込|契約|開始)|(?:契約|申込|申し込).*(?:4回券|４回券|8回券|８回券)/)
   const product = inferProduct(allText)
 
   const firstContactAt = first?.occurred_at || undefined

@@ -47,6 +47,12 @@ function needsProfile(customer: CustomerRow) {
   return !customer.full_name || !customer.parent_name || !customer.child_name || !customer.grade || !customer.region || !customer.team_name || !customer.email || !customer.phone || !customer.first_contact_at || !customer.inquiry_date || !customer.trial_date || !customer.enrolled_date
 }
 
+function isBadAutoName(value: string | null | undefined) {
+  if (!value) return false
+  return /^(お世話|すみません|すみません、|大丈夫|先生|説明会|空いてそう|お疲れ|どう|とても楽しかった|明日雨になりそう|AI秘書接続テスト)$/.test(value)
+    || /(空いて|楽しかった|明日|お疲れ|説明会|AI秘書|すみません|お世話)/.test(value)
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -101,7 +107,16 @@ export async function POST(request: NextRequest) {
   for (const customer of targetCustomers) {
     const texts = [customer.memo || '', ...(grouped.get(customer.id) || [])].filter(Boolean)
     if (texts.length === 0) continue
-    const profile = extractCustomerProfileFromTexts(texts, customer)
+    const cleanedCustomer = {
+      ...customer,
+      full_name: isBadAutoName(customer.full_name) ? null : customer.full_name,
+      parent_name: isBadAutoName(customer.parent_name) ? null : customer.parent_name,
+    }
+    const cleanupUpdate: Record<string, string | null> = {
+      ...(isBadAutoName(customer.full_name) ? { full_name: null } : {}),
+      ...(isBadAutoName(customer.parent_name) ? { parent_name: null } : {}),
+    }
+    const profile = extractCustomerProfileFromTexts(texts, cleanedCustomer)
     const historySources = [
       ...(customer.memo ? [{ body: customer.memo, occurred_at: customer.first_contact_at || customer.last_contact_at, source: 'memo' as const }] : []),
       ...((lineRows || []) as LineRow[])
@@ -109,8 +124,9 @@ export async function POST(request: NextRequest) {
       .map((row) => ({ body: row.body, ai_summary: row.ai_summary, occurred_at: row.occurred_at, source: 'line' as const })),
     ]
     const history = analyzeCustomerHistory(historySources)
-    const update: Record<string, string> = {
-      ...buildCustomerProfileUpdate(profile, customer),
+    const update: Record<string, string | null> = {
+      ...cleanupUpdate,
+      ...buildCustomerProfileUpdate(profile, cleanedCustomer),
       ...(!customer.first_contact_at && history.first_contact_at ? { first_contact_at: history.first_contact_at } : {}),
       ...(!customer.inquiry_date && history.inquiry_date ? { inquiry_date: history.inquiry_date } : {}),
       ...(!customer.trial_date && history.trial_date ? { trial_date: history.trial_date } : {}),
