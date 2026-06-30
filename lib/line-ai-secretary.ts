@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { buildCustomerProfileUpdate, extractCustomerProfileFromTexts } from '@/lib/ai-secretary/customer-profile-extractor'
 
 type LineWebhookEvent = {
   type: string
@@ -144,12 +145,25 @@ async function ensureCustomerForLineMessage(
     .maybeSingle()
 
   if (existingLink?.customer_id) {
+    const { data: existingCustomer } = await supabase
+      .from('customers')
+      .select('full_name,parent_name,child_name,grade,region,team_name,email,phone,memo')
+      .eq('id', existingLink.customer_id)
+      .maybeSingle()
+    const extractedProfile = extractCustomerProfileFromTexts([input.text], existingCustomer || {})
+    const profileUpdate = buildCustomerProfileUpdate(extractedProfile, existingCustomer || {})
+    const profileMemo = extractedProfile.source_hints.length > 0
+      ? `${existingCustomer?.memo || ''}\nAI推定: ${extractedProfile.source_hints.join(' / ')}`.trim()
+      : existingCustomer?.memo
+
     await supabase
       .from('customers')
       .update({
         service_type: input.serviceCategory === 'unknown' ? undefined : input.serviceCategory,
         status: input.customerStatus,
         last_contact_at: input.occurredAt,
+        ...profileUpdate,
+        ...(profileMemo && profileMemo !== existingCustomer?.memo ? { memo: profileMemo.slice(0, 2000) } : {}),
         updated_at: new Date().toISOString(),
       })
       .eq('id', existingLink.customer_id)
@@ -163,6 +177,13 @@ async function ensureCustomerForLineMessage(
     return existingLink.customer_id as string
   }
 
+  const extractedProfile = extractCustomerProfileFromTexts([input.text])
+  const profileUpdate = buildCustomerProfileUpdate(extractedProfile)
+  const initialMemo = [
+    `LINEから自動作成。初回内容: ${input.text.slice(0, 180)}`,
+    extractedProfile.source_hints.length > 0 ? `AI推定: ${extractedProfile.source_hints.join(' / ')}` : '',
+  ].filter(Boolean).join('\n')
+
   const { data: customer, error } = await supabase
     .from('customers')
     .insert({
@@ -172,7 +193,8 @@ async function ensureCustomerForLineMessage(
       source: 'line',
       first_contact_at: input.occurredAt,
       last_contact_at: input.occurredAt,
-      memo: `LINEから自動作成。初回内容: ${input.text.slice(0, 180)}`,
+      ...profileUpdate,
+      memo: initialMemo.slice(0, 2000),
     })
     .select('id')
     .single()

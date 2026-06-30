@@ -107,6 +107,24 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 }
 
+function formatDateOnly(value: string | null) {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value))
+}
+
+function daysSince(value: string | null) {
+  if (!value) return null
+  const start = new Date(`${value.slice(0, 10)}T00:00:00+09:00`).getTime()
+  const today = new Date(new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) + 'T00:00:00+09:00').getTime()
+  return Math.max(0, Math.floor((today - start) / 86400000))
+}
+
+function aiMemoLine(memo: string | null) {
+  if (!memo) return ''
+  const line = memo.split('\n').find((item) => item.startsWith('AI履歴要約:')) || memo.split('\n').find((item) => item.startsWith('AI履歴整理:'))
+  return line ? line.replace(/^AI履歴要約:\\s*/, '').replace(/^AI履歴整理:\\s*/, '') : ''
+}
+
 export default async function AiSecretaryCustomersPage({ searchParams }: { searchParams?: Promise<SearchParams> | SearchParams }) {
   const params = await getSearchParams(searchParams)
   const token = valueOf(params.token)
@@ -173,6 +191,11 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
                 <p className="mt-1 text-sm text-gray-500">保護者: {customer.parent_name || '-'} / 子ども: {customer.child_name || '-'} / 学年: {customer.grade || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">地域: {customer.region || '-'} / 所属: {customer.team_name || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">メール: {customer.email || '-'} / 電話: {customer.phone || '-'}</p>
+                <p className="mt-2 text-sm font-bold text-gray-700">
+                  問い合わせ: {formatDateOnly(customer.inquiry_date)} / 体験: {formatDateOnly(customer.trial_date)} / 初回開始候補: {formatDateOnly(customer.enrolled_date)}
+                  {daysSince(customer.enrolled_date) !== null ? `（${daysSince(customer.enrolled_date)}日経過）` : ''}
+                </p>
+                {aiMemoLine(customer.memo) && <p className="mt-2 rounded-xl bg-gray-50 px-3 py-2 text-sm leading-6 text-gray-600">AI履歴: {aiMemoLine(customer.memo)}</p>}
               </div>
               <div className="text-left text-xs text-gray-500 md:text-right">
                 <div>最終連絡: {formatDate(customer.last_contact_at)}</div>
