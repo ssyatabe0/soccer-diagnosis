@@ -27,7 +27,7 @@ const PREFECTURES = [
 ]
 
 const STOP_WORDS = new Set([
-  'サッカー', 'レッスン', '体験', '予約', '問い合わせ', 'お願いします', 'よろしく', '谷田部', '家庭教師', 'チーム', 'スクール', 'ドリブル', 'キッズ', 'SYSC', 'LINE', 'AI', '小学生', '中学生', '高校生'
+  'サッカー', 'レッスン', '体験', '予約', '問い合わせ', 'お願いします', 'よろしく', '谷田部', '家庭教師', 'チーム', 'スクール', 'ドリブル', 'キッズ', 'SYSC', 'LINE', 'AI', '小学生', '中学生', '高校生', 'こんにちは', 'おはようございます', 'こんばんは', 'ありがとうございます', 'お世話になります', 'お世話になっております'
 ])
 
 function cleanValue(value: string | undefined | null) {
@@ -36,6 +36,7 @@ function cleanValue(value: string | undefined | null) {
     .replace(/[「」『』【】\[\]()（）]/g, '')
     .replace(/^(は|が|を|の|です|でございます|:|：|、|。|\s)+/g, '')
     .replace(/(です|です。|でございます|になります|と申します|です、).*$/g, '')
+    .replace(/(さん|様|さま|君|くん|ちゃん|選手)$/g, '')
     .trim()
 }
 
@@ -103,7 +104,8 @@ function extractParentName(text: string) {
     /(?:私|わたし|自分)は([^\n、。,.\s　]{2,14})(?:です|と申します)/,
     /([^\n、。,.\s　]{2,14})(?:と申します|といいます)/,
   ])
-  return isSafeName(labeled) ? labeled : ''
+  if (isSafeName(labeled)) return labeled
+  return extractStandaloneName(text)
 }
 
 function extractChildName(text: string) {
@@ -113,6 +115,21 @@ function extractChildName(text: string) {
     /(?:息子|娘)の([^\n、。,.\s　]{2,14})(?:です|が|は)/,
   ])
   return isSafeName(labeled) ? labeled : ''
+}
+
+function extractStandaloneName(text: string) {
+  const lines = text
+    .split(/\n|---/)
+    .map((line) => cleanValue(line))
+    .filter(Boolean)
+    .slice(0, 16)
+
+  for (const line of lines) {
+    if (!isSafeName(line)) continue
+    if (/[？！!?]|(ます|です|ました|ください|お願い|可能|確認|予約|日程|レッスン|体験|参加|遅れ|申し訳|ありがとう|http|www|@)/.test(line)) continue
+    if (line.length >= 2 && line.length <= 10) return line
+  }
+  return ''
 }
 
 function chooseFullName(parentName: string, childName: string) {
