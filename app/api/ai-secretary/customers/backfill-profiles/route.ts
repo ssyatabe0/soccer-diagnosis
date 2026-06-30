@@ -53,6 +53,15 @@ function isBadAutoName(value: string | null | undefined) {
     || /(空いて|楽しかった|明日|お疲れ|説明会|AI秘書|すみません|お世話)/.test(value)
 }
 
+function stripAiGeneratedMemoLines(memo: string | null) {
+  if (!memo) return ''
+  return memo
+    .split('\n')
+    .filter((line) => !/^AI(過去履歴推定|履歴整理|履歴要約):/.test(line))
+    .join('\n')
+    .trim()
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -136,7 +145,7 @@ export async function POST(request: NextRequest) {
     if (Object.keys(update).length === 0) continue
 
     const memo = [
-      customer.memo || '',
+      stripAiGeneratedMemoLines(customer.memo),
       profile.source_hints.length > 0 ? `AI過去履歴推定: ${profile.source_hints.join(' / ')}` : '',
       history.hints.length > 0 ? `AI履歴整理: ${history.hints.join(' / ')}` : '',
       `AI履歴要約: ${history.summary}`,
