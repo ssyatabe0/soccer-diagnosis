@@ -102,6 +102,7 @@ function extractTeam(text: string) {
 
 function extractParentName(text: string) {
   const labeled = firstMatch(text, [
+    /(?:初回内容|初回メッセージ)\s*[：:]\s*([^\n、。,.\s　]{2,12})(?:さん|様|さま)/,
     /(?:保護者名|保護者氏名|保護者|親御様|親|父|母|お父様|お母様)\s*[：:]\s*([^\n、。,.\s　]{2,14})/,
     /(?:私|わたし|自分)は([^\n、。,.\s　]{2,14})(?:です|と申します)/,
     /([^\n、。,.\s　]{2,14})(?:と申します|といいます)/,
