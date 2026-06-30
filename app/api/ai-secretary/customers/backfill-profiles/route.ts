@@ -57,8 +57,9 @@ function needsProfile(customer: CustomerRow) {
 
 function isBadAutoName(value: string | null | undefined) {
   if (!value) return false
-  return /^(お世話|すみません|すみません、|大丈夫|先生|説明会|空いてそう|お疲れ|どう|とても楽しかった|明日雨になりそう|AI秘書接続テスト|野間)$/.test(value)
-    || /(空いて|楽しかった|明日|お疲れ|説明会|AI秘書|すみません|お世話)/.test(value)
+  return /^(お世話|すみません|すみません、|大丈夫|先生|説明会|空いてそう|お疲れ|どう|とても楽しかった|明日雨になりそう|AI秘書接続テスト|野間|例えば|了解|了解👌)$/.test(value)
+    || /(空いて|楽しかった|明日|お疲れ|説明会|AI秘書|すみません|お世話|例えば|了解)/.test(value)
+    || /[^\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ーa-zA-Z\s]/u.test(value)
 }
 
 function stripAiGeneratedMemoLines(memo: string | null) {
@@ -165,10 +166,12 @@ export async function POST(request: NextRequest) {
       ...customer,
       full_name: isBadAutoName(customer.full_name) ? null : customer.full_name,
       parent_name: isBadAutoName(customer.parent_name) ? null : customer.parent_name,
+      child_name: isBadAutoName(customer.child_name) ? null : customer.child_name,
     }
     const cleanupUpdate: Record<string, string | null> = {
       ...(isBadAutoName(customer.full_name) ? { full_name: null } : {}),
       ...(isBadAutoName(customer.parent_name) ? { parent_name: null } : {}),
+      ...(isBadAutoName(customer.child_name) ? { child_name: null } : {}),
     }
     const profile = extractCustomerProfileFromTexts(texts, cleanedCustomer)
     const historySources = [
