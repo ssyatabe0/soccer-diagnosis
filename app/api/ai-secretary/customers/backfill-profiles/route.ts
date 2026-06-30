@@ -99,12 +99,16 @@ export async function POST(request: NextRequest) {
   const updatedItems: Array<{ id: string; update: Record<string, string>; hints: string[] }> = []
 
   for (const customer of targetCustomers) {
-    const texts = grouped.get(customer.id) || []
+    const texts = [customer.memo || '', ...(grouped.get(customer.id) || [])].filter(Boolean)
     if (texts.length === 0) continue
     const profile = extractCustomerProfileFromTexts(texts, customer)
-    const history = analyzeCustomerHistory(((lineRows || []) as LineRow[])
+    const historySources = [
+      ...(customer.memo ? [{ body: customer.memo, occurred_at: customer.first_contact_at || customer.last_contact_at, source: 'memo' as const }] : []),
+      ...((lineRows || []) as LineRow[])
       .filter((row) => row.customer_id === customer.id)
-      .map((row) => ({ body: row.body, ai_summary: row.ai_summary, occurred_at: row.occurred_at, source: 'line' as const })))
+      .map((row) => ({ body: row.body, ai_summary: row.ai_summary, occurred_at: row.occurred_at, source: 'line' as const })),
+    ]
+    const history = analyzeCustomerHistory(historySources)
     const update: Record<string, string> = {
       ...buildCustomerProfileUpdate(profile, customer),
       ...(!customer.first_contact_at && history.first_contact_at ? { first_contact_at: history.first_contact_at } : {}),
