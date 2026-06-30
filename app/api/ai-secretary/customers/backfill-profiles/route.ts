@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { analyzeCustomerHistory } from '@/lib/ai-secretary/customer-history-analyzer'
 import { buildCustomerProfileUpdate, extractCustomerProfileFromTexts } from '@/lib/ai-secretary/customer-profile-extractor'
+import { fetchLineProfile } from '@/lib/line-profile'
 
 type CustomerRow = {
   id: string
@@ -26,6 +27,13 @@ type LineRow = {
   body: string | null
   ai_summary: string | null
   occurred_at: string | null
+}
+
+type CustomerLineAccountRow = {
+  customer_id: string
+  account_key: string
+  line_user_id: string
+  display_name: string | null
 }
 
 function getServiceClient() {
@@ -57,7 +65,7 @@ function stripAiGeneratedMemoLines(memo: string | null) {
   if (!memo) return ''
   return memo
     .split('\n')
-    .filter((line) => !/^AI(過去履歴推定|履歴整理|履歴要約):/.test(line))
+    .filter((line) => !/^AI(過去履歴推定|表示名候補|履歴整理|履歴要約):/.test(line))
     .join('\n')
     .trim()
 }
@@ -102,6 +110,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: lineError.message }, { status: 500 })
   }
 
+  const { data: lineAccounts, error: lineAccountError } = await supabase
+    .from('customer_line_accounts')
+    .select('customer_id,account_key,line_user_id,display_name')
+    .in('customer_id', customerIds)
+
+  if (lineAccountError) {
+    return NextResponse.json({ error: lineAccountError.message }, { status: 500 })
+  }
+
+  const lineDisplayNames = new Map<string, string[]>()
+  let fetchedLineProfiles = 0
+  for (const account of (lineAccounts || []) as CustomerLineAccountRow[]) {
+    let displayName = account.display_name
+    if (!displayName) {
+      const profile = await fetchLineProfile(account.account_key, account.line_user_id)
+      displayName = profile?.displayName || null
+      if (displayName) {
+        fetchedLineProfiles += 1
+        await supabase
+          .from('customer_line_accounts')
+          .update({ display_name: displayName, updated_at: new Date().toISOString() })
+          .eq('account_key', account.account_key)
+          .eq('line_user_id', account.line_user_id)
+      }
+    }
+    if (displayName) {
+      const values = lineDisplayNames.get(account.customer_id) || []
+      values.push(displayName)
+      lineDisplayNames.set(account.customer_id, [...new Set(values)])
+    }
+  }
+
   const grouped = new Map<string, string[]>()
   for (const row of (lineRows || []) as LineRow[]) {
     if (!row.customer_id) continue
@@ -114,7 +154,12 @@ export async function POST(request: NextRequest) {
   const updatedItems: Array<{ id: string; update: Record<string, string>; hints: string[] }> = []
 
   for (const customer of targetCustomers) {
-    const texts = [customer.memo || '', ...(grouped.get(customer.id) || [])].filter(Boolean)
+    const displayNames = lineDisplayNames.get(customer.id) || []
+    const texts = [
+      customer.memo || '',
+      ...displayNames.map((name) => `LINE表示名: ${name}`),
+      ...(grouped.get(customer.id) || []),
+    ].filter(Boolean)
     if (texts.length === 0) continue
     const cleanedCustomer = {
       ...customer,
@@ -147,6 +192,7 @@ export async function POST(request: NextRequest) {
     const memo = [
       stripAiGeneratedMemoLines(customer.memo),
       profile.source_hints.length > 0 ? `AI過去履歴推定: ${profile.source_hints.join(' / ')}` : '',
+      displayNames.length > 0 ? `AI表示名候補: LINE表示名 ${displayNames.join(' / ')}` : '',
       history.hints.length > 0 ? `AI履歴整理: ${history.hints.join(' / ')}` : '',
       `AI履歴要約: ${history.summary}`,
     ].filter(Boolean).join('\n').slice(0, 2000)
@@ -165,6 +211,7 @@ export async function POST(request: NextRequest) {
     checked: customers?.length || 0,
     target_count: targetCustomers.length,
     updated: updatedItems.length,
+    fetched_line_profiles: fetchedLineProfiles,
     items: updatedItems,
   })
 }

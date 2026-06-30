@@ -25,6 +25,12 @@ type CustomerRow = {
   last_contact_at: string | null
   line_message_count: number | null
   line_account_names: string[] | null
+  line_display_names?: string[]
+}
+
+type CustomerLineAccountRow = {
+  customer_id: string
+  display_name: string | null
 }
 
 function getServiceClient() {
@@ -58,8 +64,27 @@ async function loadCustomers(status: string, serviceType: string, keyword: strin
 
   const { data, error } = await query
   if (error) return { items: [] as CustomerRow[], error: error.message }
+  const rows = (data || []) as CustomerRow[]
+  const ids = rows.map((customer) => customer.id)
+  const lineDisplayNames = new Map<string, string[]>()
+  if (ids.length > 0) {
+    const { data: lineAccounts } = await supabase
+      .from('customer_line_accounts')
+      .select('customer_id,display_name')
+      .in('customer_id', ids)
+    for (const account of (lineAccounts || []) as CustomerLineAccountRow[]) {
+      if (!account.display_name) continue
+      const values = lineDisplayNames.get(account.customer_id) || []
+      values.push(account.display_name)
+      lineDisplayNames.set(account.customer_id, [...new Set(values)])
+    }
+  }
+  const enrichedRows = rows.map((customer) => ({
+    ...customer,
+    line_display_names: lineDisplayNames.get(customer.id) || [],
+  }))
   const normalized = keyword.trim().toLowerCase()
-  const items = ((data || []) as CustomerRow[]).filter((customer) => {
+  const items = enrichedRows.filter((customer) => {
     if (!normalized) return true
     return [
       customer.full_name,
@@ -72,6 +97,7 @@ async function loadCustomers(status: string, serviceType: string, keyword: strin
       customer.team_name,
       customer.next_reservation_at,
       customer.memo,
+      ...(customer.line_display_names || []),
       ...(customer.line_account_names || []),
     ].filter(Boolean).join(' ').toLowerCase().includes(normalized)
   })
@@ -126,7 +152,8 @@ function aiMemoLine(memo: string | null) {
 }
 
 function displayName(customer: CustomerRow) {
-  return customer.full_name || customer.child_name || customer.parent_name || '名前未確定'
+  const lineName = customer.line_display_names?.[0]
+  return customer.full_name || customer.child_name || customer.parent_name || (lineName ? `LINE表示名: ${lineName}` : '名前未確定')
 }
 
 function needsNameConfirmation(customer: CustomerRow) {
@@ -197,6 +224,7 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
                 </div>
                 <h3 className="mt-3 text-lg font-black text-gray-900">{displayName(customer)}</h3>
                 {needsNameConfirmation(customer) && <p className="mt-1 text-xs font-bold text-red-600">過去LINEから名前未確定。次回返信時に保護者名・選手名確認が必要です。</p>}
+                {(customer.line_display_names || []).length > 0 && <p className="mt-1 text-xs font-bold text-gray-500">LINE表示名: {(customer.line_display_names || []).join(' / ')}</p>}
                 <p className="mt-1 text-sm text-gray-500">保護者: {customer.parent_name || '-'} / 子ども: {customer.child_name || '-'} / 学年: {customer.grade || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">地域: {customer.region || '-'} / 所属: {customer.team_name || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">メール: {customer.email || '-'} / 電話: {customer.phone || '-'}</p>

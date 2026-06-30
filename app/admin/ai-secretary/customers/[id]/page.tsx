@@ -53,6 +53,14 @@ type LineMessage = {
   occurred_at: string
 }
 
+type CustomerLineAccount = {
+  account_key: string
+  line_user_id: string
+  display_name: string | null
+  first_seen_at: string | null
+  last_seen_at: string | null
+}
+
 type GmailSource = {
   id: number
   from_email: string | null
@@ -221,6 +229,7 @@ async function loadCustomer(id: string) {
       customer: null,
       timeline: [] as TimelineEvent[],
       lines: [] as LineMessage[],
+      lineAccounts: [] as CustomerLineAccount[],
       gmail: [] as GmailSource[],
       calendar: [] as CalendarSource[],
       cases: [] as CaseRecord[],
@@ -242,6 +251,7 @@ async function loadCustomer(id: string) {
     { data: customer, error: customerError },
     { data: timeline, error: timelineError },
     { data: lines, error: linesError },
+    { data: lineAccounts, error: lineAccountsError },
     { data: gmail, error: gmailError },
     { data: calendar, error: calendarError },
     { data: cases, error: casesError },
@@ -259,6 +269,7 @@ async function loadCustomer(id: string) {
     supabase.from('customers').select('*').eq('id', id).single(),
     supabase.from('customer_timeline_events').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
     supabase.from('ai_secretary_line_inbox').select('*').eq('customer_id', id).order('occurred_at', { ascending: false }).limit(100),
+    supabase.from('customer_line_accounts').select('account_key,line_user_id,display_name,first_seen_at,last_seen_at').eq('customer_id', id).order('last_seen_at', { ascending: false, nullsFirst: false }).limit(20),
     supabase.from('gmail_sync_sources').select('*').eq('customer_id', id).order('occurred_at', { ascending: false, nullsFirst: false }).limit(100),
     supabase.from('calendar_sync_sources').select('*').eq('customer_id', id).order('starts_at', { ascending: false, nullsFirst: false }).limit(100),
     supabase.from('case_records').select('*').eq('customer_id', id).order('created_at', { ascending: false }).limit(100),
@@ -274,11 +285,12 @@ async function loadCustomer(id: string) {
     supabase.from('contract_documents').select('id,title,status,file_name,ai_suggestion,notes,created_at').eq('customer_id', id).order('created_at', { ascending: false }).limit(100),
   ])
 
-  const error = customerError?.message || timelineError?.message || linesError?.message || gmailError?.message || calendarError?.message || casesError?.message || videosError?.message || usageCandidatesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || aiProfileError?.message || contractTemplatesError?.message || contractDocumentsError?.message || null
+  const error = customerError?.message || timelineError?.message || linesError?.message || lineAccountsError?.message || gmailError?.message || calendarError?.message || casesError?.message || videosError?.message || usageCandidatesError?.message || contractsError?.message || ticketUsageError?.message || followTasksError?.message || salesCandidatesError?.message || productsError?.message || aiProfileError?.message || contractTemplatesError?.message || contractDocumentsError?.message || null
   return {
     customer: customer as Customer | null,
     timeline: (timeline || []) as TimelineEvent[],
     lines: (lines || []) as LineMessage[],
+    lineAccounts: (lineAccounts || []) as CustomerLineAccount[],
     gmail: (gmail || []) as GmailSource[],
     calendar: (calendar || []) as CalendarSource[],
     cases: (cases || []) as CaseRecord[],
@@ -350,7 +362,7 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
     return <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-6 text-yellow-900">閲覧トークンが必要です。</div>
   }
 
-  const { customer, timeline, lines, gmail, calendar, cases, videos, usageCandidates, contracts, ticketUsage, followTasks, salesCandidates, products, contractTemplates, contractDocuments, aiProfile, error } = await loadCustomer(id)
+  const { customer, timeline, lines, lineAccounts, gmail, calendar, cases, videos, usageCandidates, contracts, ticketUsage, followTasks, salesCandidates, products, contractTemplates, contractDocuments, aiProfile, error } = await loadCustomer(id)
 
   if (error || !customer) {
     return <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800">顧客読み取りエラー: {error || 'not_found'}</div>
@@ -368,6 +380,20 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
       </div>
 
       <CustomerEditor customer={customer} token={token} />
+
+      {lineAccounts.length > 0 && (
+        <section className="rounded-2xl border border-green-200 bg-green-50 p-5 shadow-sm">
+          <h3 className="text-lg font-black text-green-950">LINE表示名候補</h3>
+          <p className="mt-1 text-sm text-green-800">これはLINE公式から取得した表示名です。正式な保護者名・選手名は必要に応じて上の顧客情報へ手動で確定してください。</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {lineAccounts.map((account) => (
+              <span key={`${account.account_key}-${account.line_user_id}`} className="rounded-full bg-white px-3 py-2 text-xs font-bold text-green-900 ring-1 ring-green-200">
+                {account.display_name || '表示名未取得'} / {account.account_key} / 最終 {formatDate(account.last_seen_at)}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       <ContractDocumentActions customerId={customer.id} token={token} templates={contractTemplates} documents={contractDocuments} />
 

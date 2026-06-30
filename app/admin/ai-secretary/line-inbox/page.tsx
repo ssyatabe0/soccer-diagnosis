@@ -10,6 +10,7 @@ type LineInboxItem = {
   account_display_name: string | null
   account_service_area: string | null
   line_user_id: string | null
+  line_display_name?: string | null
   body: string
   extracted_type: string | null
   intent: string | null
@@ -59,6 +60,12 @@ type LineInboxItem = {
   selection_priority: boolean | null
 }
 
+type CustomerLineAccountRow = {
+  account_key: string
+  line_user_id: string
+  display_name: string | null
+}
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -87,7 +94,25 @@ async function loadInbox(status: string) {
     .limit(50)
 
   if (error) return { items: [] as LineInboxItem[], error: error.message }
-  return { items: (data || []) as LineInboxItem[], error: null }
+  const rows = (data || []) as LineInboxItem[]
+  const accountKeys = [...new Set(rows.map((item) => item.account_key).filter(Boolean))] as string[]
+  const lineUserIds = [...new Set(rows.map((item) => item.line_user_id).filter(Boolean))] as string[]
+  const displayNameMap = new Map<string, string>()
+  if (accountKeys.length > 0 && lineUserIds.length > 0) {
+    const { data: lineAccounts } = await supabase
+      .from('customer_line_accounts')
+      .select('account_key,line_user_id,display_name')
+      .in('account_key', accountKeys)
+      .in('line_user_id', lineUserIds)
+    for (const account of (lineAccounts || []) as CustomerLineAccountRow[]) {
+      if (account.display_name) displayNameMap.set(`${account.account_key}:${account.line_user_id}`, account.display_name)
+    }
+  }
+  const items = rows.map((item) => ({
+    ...item,
+    line_display_name: item.account_key && item.line_user_id ? displayNameMap.get(`${item.account_key}:${item.line_user_id}`) || null : null,
+  }))
+  return { items, error: null }
 }
 
 function formatDate(value: string) {
@@ -196,6 +221,7 @@ export default async function AiSecretaryLineInboxPage({
                   </div>
                   <div className="text-xs text-gray-400">LINE userId: {item.line_user_id || '-'}</div>
                 </div>
+                {item.line_display_name && <div className="mt-2 text-xs font-bold text-gray-600">LINE表示名: {item.line_display_name}</div>}
               </div>
 
               <div className="grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
@@ -251,7 +277,7 @@ export default async function AiSecretaryLineInboxPage({
                     >
                       <div className="font-black text-green-950">顧客マスタを開く</div>
                       <div className="mt-1 text-green-800">
-                        {item.customer_full_name || item.customer_child_name || item.customer_parent_name || '名前未登録'}
+                        {item.customer_full_name || item.customer_child_name || item.customer_parent_name || (item.line_display_name ? `LINE表示名: ${item.line_display_name}` : '名前未登録')}
                       </div>
                       <div className="mt-1 text-xs text-green-700">
                         学年: {item.customer_grade || '-'} / 地域: {item.customer_region || '-'} / 所属: {item.customer_team_name || '-'}

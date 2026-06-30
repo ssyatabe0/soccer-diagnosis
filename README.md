@@ -100,9 +100,16 @@ AI_SECRETARY_DISABLED=false
 SUPABASE_SERVICE_ROLE_KEY=your-rotated-supabase-secret-key
 LINE_ACCOUNT_KEY=soccer_private_lesson
 LINE_AUTO_REPLY_ENABLED=false
+LINE_CHANNEL_ACCESS_TOKEN_SOCCER_PRIVATE_LESSON=サッカー家庭教師のチャネルアクセストークン
+LINE_CHANNEL_ACCESS_TOKEN_JAPAN_KIDS_SOCCER_CLUB=JAPANキッズサッカークラブのチャネルアクセストークン
+LINE_CHANNEL_ACCESS_TOKEN_SYSC_TEAM_BROADCAST=SYSCチーム一斉連絡のチャネルアクセストークン
+LINE_CHANNEL_ACCESS_TOKEN_SYSC_INQUIRY_NEWS=SYSC問い合わせ＆最新情報のチャネルアクセストークン
+LINE_CHANNEL_ACCESS_TOKEN_DRIBBLE_SCHOOL=ドリブル塾のチャネルアクセストークン
 ```
 
 `ADMIN_USER` と `ADMIN_PASSWORD` が未設定の場合、管理画面は開かない。`admin / admin` は使わない。
+
+LINE表示名を取得して「名前未確定」を減らすには、各LINE公式アカウントの `Messaging API` 画面で発行したチャネルアクセストークンを、上記のアカウント別環境変数としてVercelに追加する。未設定のアカウントはWebhook保存はできるが、LINE表示名は取得できない。
 
 ### 複数LINE公式アカウント
 
