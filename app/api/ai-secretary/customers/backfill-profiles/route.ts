@@ -49,7 +49,7 @@ function needsProfile(customer: CustomerRow) {
 
 function isBadAutoName(value: string | null | undefined) {
   if (!value) return false
-  return /^(お世話|すみません|すみません、|大丈夫|先生|説明会|空いてそう|お疲れ|どう|とても楽しかった|明日雨になりそう|AI秘書接続テスト)$/.test(value)
+  return /^(お世話|すみません|すみません、|大丈夫|先生|説明会|空いてそう|お疲れ|どう|とても楽しかった|明日雨になりそう|AI秘書接続テスト|野間)$/.test(value)
     || /(空いて|楽しかった|明日|お疲れ|説明会|AI秘書|すみません|お世話)/.test(value)
 }
 

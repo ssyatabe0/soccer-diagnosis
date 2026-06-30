@@ -30,6 +30,11 @@ const STOP_WORDS = new Set([
   'サッカー', 'レッスン', '体験', '予約', '問い合わせ', 'お願いします', 'よろしく', '谷田部', '家庭教師', 'チーム', 'スクール', 'ドリブル', 'キッズ', 'SYSC', 'LINE', 'AI', '小学生', '中学生', '高校生', 'こんにちは', 'おはようございます', 'こんばんは', 'ありがとうございます', 'お世話になります', 'お世話になっております'
 ])
 
+const INTERNAL_PERSON_NAMES = new Set([
+  '谷田部',
+  '野間',
+])
+
 const BAD_STANDALONE_NAME_PATTERN = /(お世話|すみません|大丈夫|先生|説明会|空いて|楽しかった|どう|明日|お疲れ|とても|AI秘書|開始|予約|確認|可能|参加|遅れ|申し訳|ありがとう|ご連絡|本日|昨日|明後日|今日|レッスン|体験)/
 
 function cleanValue(value: string | undefined | null) {
@@ -47,6 +52,7 @@ function isSafeName(value: string) {
   if (cleaned.length < 2 || cleaned.length > 14) return false
   if (/\d|@|https?:\/\//i.test(cleaned)) return false
   if (STOP_WORDS.has(cleaned)) return false
+  if (INTERNAL_PERSON_NAMES.has(cleaned)) return false
   if ([...STOP_WORDS].some((word) => cleaned.includes(word) && cleaned.length <= word.length + 2)) return false
   return /[一-龥ぁ-んァ-ンーa-zA-Z]/.test(cleaned)
 }

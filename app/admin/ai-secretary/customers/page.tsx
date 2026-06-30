@@ -125,6 +125,14 @@ function aiMemoLine(memo: string | null) {
   return line ? line.replace(/^AI履歴要約:\\s*/, '').replace(/^AI履歴整理:\\s*/, '') : ''
 }
 
+function displayName(customer: CustomerRow) {
+  return customer.full_name || customer.child_name || customer.parent_name || '名前未確定'
+}
+
+function needsNameConfirmation(customer: CustomerRow) {
+  return !customer.full_name && !customer.parent_name && !customer.child_name
+}
+
 export default async function AiSecretaryCustomersPage({ searchParams }: { searchParams?: Promise<SearchParams> | SearchParams }) {
   const params = await getSearchParams(searchParams)
   const token = valueOf(params.token)
@@ -187,7 +195,8 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
                   <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">{statusLabel(customer.status)}</span>
                   <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">LINE {customer.line_message_count || 0}件</span>
                 </div>
-                <h3 className="mt-3 text-lg font-black text-gray-900">{customer.full_name || customer.child_name || customer.parent_name || '名前未登録'}</h3>
+                <h3 className="mt-3 text-lg font-black text-gray-900">{displayName(customer)}</h3>
+                {needsNameConfirmation(customer) && <p className="mt-1 text-xs font-bold text-red-600">過去LINEから名前未確定。次回返信時に保護者名・選手名確認が必要です。</p>}
                 <p className="mt-1 text-sm text-gray-500">保護者: {customer.parent_name || '-'} / 子ども: {customer.child_name || '-'} / 学年: {customer.grade || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">地域: {customer.region || '-'} / 所属: {customer.team_name || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">メール: {customer.email || '-'} / 電話: {customer.phone || '-'}</p>
