@@ -45,8 +45,8 @@ async function loadDashboard() {
   return { error, today, month, lines: (lineResult.data || []) as LineItem[], gmail: (gmailResult.data || []) as GmailItem[], customers: (customersResult.data || []) as Customer[], sales: (salesResult.data || []) as SalesCandidate[], tasksTasks: (tasksResult.data || []) as FollowTask[], calendar: (calendarResult.data || []) as CalendarItem[], usageCandidates: (usageCandidateResult.data || []) as UsageCandidate[], tasks: (contractResult.data || []) as ContractAmount[] }
 }
 
-function nameOf(item: { full_name?: string | null; parent_name?: string | null; child_name?: string | null }) { return item.full_name || item.parent_name || item.child_name || 'LINE顧客' }
-function lineName(item: LineItem) { return item.customer_full_name || item.customer_parent_name || item.customer_child_name || `${item.account_display_name || 'LINE'} 顧客` }
+function nameOf(item: { full_name?: string | null; parent_name?: string | null; child_name?: string | null }) { return item.full_name || item.parent_name || item.child_name || 'LINE' }
+function lineName(item: LineItem) { return item.customer_full_name || item.customer_parent_name || item.customer_child_name || 'LINE表示名取得待ち' }
 function candidateLabel(type: string) { const labels: Record<string, string> = { remaining_1: '残り1回', remaining_2: '残り2回', expiry_30: '期限30日前', expiry_14: '期限14日前', expiry_7: '期限7日前', unused_90: '90日未利用', review_request: 'レビュー依頼候補', ashiwaza_candidate: '足技塾候補', sysc_candidate: 'SYSC候補', kids_school_candidate: 'キッズ候補', private_lesson_reproposal: '個人レッスン再提案候補' }; return labels[type] || type }
 function statusLabel(status: string) { const labels: Record<string, string> = { new_inquiry: '新規問い合わせ', trial_scheduling: '体験調整中', trial_booked: '体験予約済み', trial_done: '体験後未フォロー' }; return labels[status] || status }
 function serviceLabel(type: string | null) { const labels: Record<string, string> = { private_lesson: '個人レッスン', ashiwaza_dribble: '足技塾', sysc: 'SYSC', kids_school: 'キッズスクール', overseas: '海外', unknown: '未分類' }; return labels[type || 'unknown'] || type || '未分類' }

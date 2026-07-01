@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const profile = {
     customer_id: customerId,
-    overview: `${customer.full_name || customer.parent_name || customer.child_name || '名称未設定'} / ${customer.service_type} / ${customer.status}`,
+    overview: `${customer.full_name || customer.parent_name || customer.child_name || 'LINE'} / ${customer.service_type} / ${customer.status}`,
     pain_points: summarizeText(extractAround(timelineText, ['悩', '課題', 'ドリブル', 'セレクション', '試合', '上手', '改善']), 'まだ明確な悩みは未抽出です。'),
     inquiry_reason: summarizeText(extractAround(timelineText, ['問い合わせ', '体験', '相談', '希望', '興味']), '問い合わせ理由は履歴追加後に更新します。'),
     contract_reason: contracts.length > 0 ? `${contracts.length}件の契約履歴があります。` : '契約理由は未登録です。',

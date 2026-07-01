@@ -24,7 +24,7 @@ async function search(token: string, q: string) {
 
 function nameOf(item: Record<string, unknown>) {
   const customer = typeof item.customers === 'object' && item.customers !== null ? item.customers as Record<string, unknown> : {}
-  return String(item.full_name || item.parent_name || item.child_name || customer.full_name || customer.parent_name || customer.child_name || 'LINE顧客')
+  return String(item.full_name || item.parent_name || item.child_name || customer.full_name || customer.parent_name || customer.child_name || 'LINE')
 }
 
 export default async function AiSecretarySearchPage({ searchParams }: { searchParams?: Promise<SearchParams> | SearchParams }) {

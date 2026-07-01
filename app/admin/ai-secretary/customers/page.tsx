@@ -153,8 +153,7 @@ function aiMemoLine(memo: string | null) {
 
 function displayName(customer: CustomerRow) {
   const lineName = customer.line_display_names?.[0]
-  const accountName = customer.line_account_names?.[0]
-  return customer.full_name || customer.child_name || customer.parent_name || lineName || (accountName ? `${accountName} LINE顧客` : `${serviceLabel(customer.service_type)} LINE顧客`)
+  return customer.full_name || customer.child_name || customer.parent_name || lineName || 'LINE表示名取得待ち'
 }
 
 function needsNameConfirmation(customer: CustomerRow) {
@@ -224,7 +223,7 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
                   <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">LINE {customer.line_message_count || 0}件</span>
                 </div>
                 <h3 className="mt-3 text-lg font-black text-gray-900">{displayName(customer)}</h3>
-                {needsNameConfirmation(customer) && <p className="mt-1 text-xs font-bold text-gray-500">正式名未登録。LINE履歴を見て必要なら保護者名・選手名を追記。</p>}
+                {needsNameConfirmation(customer) && <p className="mt-1 text-xs font-bold text-gray-500">相手のLINE表示名を取得できたらここに出します。保護者名・選手名は必要な時だけ追記。</p>}
                 {(customer.line_display_names || []).length > 0 && <p className="mt-1 text-xs font-bold text-gray-500">LINE表示名: {(customer.line_display_names || []).join(' / ')}</p>}
                 <p className="mt-1 text-sm text-gray-500">保護者: {customer.parent_name || '-'} / 子ども: {customer.child_name || '-'} / 学年: {customer.grade || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">地域: {customer.region || '-'} / 所属: {customer.team_name || '-'}</p>

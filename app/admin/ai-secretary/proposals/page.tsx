@@ -9,7 +9,7 @@ function getServiceClient() { const url = process.env.NEXT_PUBLIC_SUPABASE_URL; 
 function valueOf(value: string | string[] | undefined, fallback = '') { return Array.isArray(value) ? value[0] || fallback : value || fallback }
 async function getSearchParams(input: Promise<SearchParams> | SearchParams | undefined) { return input ? await Promise.resolve(input) : {} }
 function formatDate(value: string | null) { return value ? new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '-' }
-function customerName(item: Proposal) { return item.customers?.full_name || item.customers?.parent_name || item.customers?.child_name || 'LINE顧客' }
+function customerName(item: Proposal) { return item.customers?.full_name || item.customers?.parent_name || item.customers?.child_name || 'LINE' }
 
 async function loadData() {
   const supabase = getServiceClient()

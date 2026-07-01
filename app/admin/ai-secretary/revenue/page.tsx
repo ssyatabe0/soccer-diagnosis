@@ -116,7 +116,7 @@ function serviceLabel(type: string | null) {
 }
 
 function customerName(item: Pick<SalesCandidate, 'full_name' | 'parent_name' | 'child_name'>) {
-  return item.full_name || item.parent_name || item.child_name || 'LINE顧客'
+  return item.full_name || item.parent_name || item.child_name || 'LINE'
 }
 
 function formatDate(value: string | null | undefined) {
@@ -237,7 +237,7 @@ function FollowSection({ title, items, token }: { title: string; items: Array<Sa
           const customerId = item.customer_id
           const type = isTask ? item.task_type || item.candidate_type || 'manual' : item.candidate_type
           const name = isTask
-            ? item.customers?.full_name || item.customers?.parent_name || item.customers?.child_name || 'LINE顧客'
+            ? item.customers?.full_name || item.customers?.parent_name || item.customers?.child_name || 'LINE'
             : customerName(item)
           const service = isTask ? item.customers?.service_type || 'unknown' : item.customer_service_type
           return (

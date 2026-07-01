@@ -17,7 +17,7 @@ export type BusinessCandidate = {
 }
 
 export function customerName(item: Pick<BusinessCandidate, 'full_name' | 'parent_name' | 'child_name'>) {
-  return item.full_name || item.parent_name || item.child_name || '名称未設定'
+  return item.full_name || item.parent_name || item.child_name || 'LINE'
 }
 
 export function candidateLabel(type: string) {
