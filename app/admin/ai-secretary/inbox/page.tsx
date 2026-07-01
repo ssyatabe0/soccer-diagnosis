@@ -11,7 +11,7 @@ function getServiceClient() { const url = process.env.NEXT_PUBLIC_SUPABASE_URL; 
 function valueOf(value: string | string[] | undefined, fallback = '') { return Array.isArray(value) ? value[0] || fallback : value || fallback }
 async function getSearchParams(input: Promise<SearchParams> | SearchParams | undefined) { return input ? await Promise.resolve(input) : {} }
 function formatDateTime(value: string | null | undefined) { if (!value) return '-'; return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
-function lineName(item: LineItem) { return item.customer_full_name || item.customer_parent_name || item.customer_child_name || 'LINE表示名取得待ち' }
+function lineName(item: LineItem) { return item.customer_full_name || item.customer_parent_name || item.customer_child_name || `${formatDateTime(item.occurred_at).slice(0, 5)}のLINE相談` }
 function hrefForCustomer(id: string | null | undefined, token: string) { return id ? `/admin/ai-secretary/customers/${id}?token=${encodeURIComponent(token)}` : `/admin/ai-secretary/customers?token=${encodeURIComponent(token)}` }
 function lineDraft(text: string) { const compact = text.replace(/\s+/g, ' ').slice(0, 90); return `ご連絡ありがとうございます。\n内容確認しました。\n「${compact}」について確認して、改めてご案内いたします。\n谷田部` }
 function mailDraft(subject: string | null) { return `お問い合わせありがとうございます。\n${subject ? `「${subject}」の件、` : ''}内容を確認しました。\n詳細を確認のうえ、改めてご連絡いたします。\n谷田部` }

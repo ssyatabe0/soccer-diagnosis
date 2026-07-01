@@ -277,7 +277,7 @@ export default async function AiSecretaryLineInboxPage({
                     >
                       <div className="font-black text-green-950">顧客マスタを開く</div>
                       <div className="mt-1 text-green-800">
-                        {item.customer_full_name || item.customer_child_name || item.customer_parent_name || item.line_display_name || 'LINE表示名取得待ち'}
+                        {item.customer_full_name || item.customer_child_name || item.customer_parent_name || item.line_display_name || `${formatDate(item.occurred_at)}のLINE相談`}
                       </div>
                       <div className="mt-1 text-xs text-green-700">
                         学年: {item.customer_grade || '-'} / 地域: {item.customer_region || '-'} / 所属: {item.customer_team_name || '-'}
