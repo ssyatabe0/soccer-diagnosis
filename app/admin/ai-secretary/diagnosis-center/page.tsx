@@ -11,7 +11,7 @@ function getServiceClient() { const url = process.env.NEXT_PUBLIC_SUPABASE_URL; 
 function valueOf(value: string | string[] | undefined, fallback = '') { return Array.isArray(value) ? value[0] || fallback : value || fallback }
 async function getSearchParams(input: Promise<SearchParams> | SearchParams | undefined) { return input ? await Promise.resolve(input) : {} }
 function formatDate(value: string | null) { return value ? new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '-' }
-function nameOf(item: { full_name?: string | null; parent_name?: string | null; child_name?: string | null; customer_full_name?: string | null; customer_parent_name?: string | null; customer_child_name?: string | null }) { return item.full_name || item.parent_name || item.child_name || item.customer_full_name || item.customer_parent_name || item.customer_child_name || '顧客未確定' }
+function nameOf(item: { full_name?: string | null; parent_name?: string | null; child_name?: string | null; customer_full_name?: string | null; customer_parent_name?: string | null; customer_child_name?: string | null }) { return item.full_name || item.parent_name || item.child_name || item.customer_full_name || item.customer_parent_name || item.customer_child_name || 'LINE顧客' }
 
 async function loadData() {
   const supabase = getServiceClient()

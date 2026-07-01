@@ -11,7 +11,7 @@ function valueOf(value: string | string[] | undefined, fallback = '') { return A
 async function getSearchParams(input: Promise<SearchParams> | SearchParams | undefined) { return input ? await Promise.resolve(input) : {} }
 function todayJst() { return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) }
 function currentMonthStart() { const today = todayJst(); return `${today.slice(0, 7)}-01` }
-function nameOf(item: { full_name?: string | null; parent_name?: string | null; child_name?: string | null }) { return item.full_name || item.parent_name || item.child_name || '名称未設定' }
+function nameOf(item: { full_name?: string | null; parent_name?: string | null; child_name?: string | null }) { return item.full_name || item.parent_name || item.child_name || 'LINE顧客' }
 function hrefForCustomer(id: string | null | undefined, token: string) { return id ? `/admin/ai-secretary/customers/${id}?token=${encodeURIComponent(token)}` : `/admin/ai-secretary/customers?token=${encodeURIComponent(token)}` }
 function formatYen(value: number | null | undefined) { return value ? `${value.toLocaleString()}円` : '-' }
 function candidateLabel(type: string) { const labels: Record<string, string> = { remaining_1: '残り1回', remaining_2: '残り2回', expiry_30: '期限30日前', expiry_14: '期限14日前', expiry_7: '期限7日前', unused_90: '90日未利用', review_request: 'レビュー依頼候補', ashiwaza_candidate: '足技塾候補', sysc_candidate: 'SYSC候補', kids_school_candidate: 'キッズ候補', private_lesson_reproposal: '個人レッスン再提案候補' }; return labels[type] || type }

@@ -11,7 +11,7 @@ function valueOf(value: string | string[] | undefined, fallback = '') { return A
 async function getSearchParams(input: Promise<SearchParams> | SearchParams | undefined) { return input ? await Promise.resolve(input) : {} }
 function todayJst() { return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) }
 function nextDay(dateText: string) { const date = new Date(`${dateText}T00:00:00.000Z`); date.setUTCDate(date.getUTCDate() + 1); return date.toISOString().slice(0, 10) }
-function nameOf(item: { full_name?: string | null; parent_name?: string | null; child_name?: string | null }) { return item.full_name || item.parent_name || item.child_name || '名称未設定' }
+function nameOf(item: { full_name?: string | null; parent_name?: string | null; child_name?: string | null }) { return item.full_name || item.parent_name || item.child_name || 'LINE顧客' }
 function serviceLabel(value: string | null) { const labels: Record<string, string> = { private_lesson: '個人レッスン', ashiwaza_dribble: '足技塾', sysc: 'SYSC', kids_school: 'キッズ', overseas: '海外', unknown: '未分類' }; return labels[value || 'unknown'] || value || '未分類' }
 function statusLabel(value: string) { const labels: Record<string, string> = { new_inquiry: '新規問い合わせ', trial_scheduling: '体験調整中', trial_booked: '体験予約済み', trial_done: '体験完了', considering: '検討中', enrolled: '入会', continuing: '継続', paused: '休会', withdrawn: '退会' }; return labels[value] || value }
 function formatDateTime(value: string | null | undefined) { if (!value) return '-'; return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }

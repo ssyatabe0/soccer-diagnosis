@@ -30,7 +30,7 @@ function today() {
 }
 
 function customerName(customer: Customer) {
-  return customer.full_name || customer.child_name || customer.parent_name || '名前未登録'
+  return customer.full_name || customer.child_name || customer.parent_name || 'LINE顧客'
 }
 
 function caseName(item: CaseItem) {

@@ -277,7 +277,7 @@ export default async function AiSecretaryLineInboxPage({
                     >
                       <div className="font-black text-green-950">顧客マスタを開く</div>
                       <div className="mt-1 text-green-800">
-                        {item.customer_full_name || item.customer_child_name || item.customer_parent_name || (item.line_display_name ? `LINE表示名: ${item.line_display_name}` : '名前未登録')}
+                        {item.customer_full_name || item.customer_child_name || item.customer_parent_name || item.line_display_name || `${item.account_display_name || item.account_key || 'LINE'} 顧客`}
                       </div>
                       <div className="mt-1 text-xs text-green-700">
                         学年: {item.customer_grade || '-'} / 地域: {item.customer_region || '-'} / 所属: {item.customer_team_name || '-'}
@@ -317,7 +317,7 @@ export default async function AiSecretaryLineInboxPage({
                       {candidates.length === 0 && <p className="text-sm text-gray-400">候補なし</p>}
                       {candidates.map((candidate) => (
                         <div key={candidate.user_id} className="rounded-xl border border-gray-200 p-3 text-sm">
-                          <div className="font-bold text-gray-900">{candidate.name || '名前未登録'}</div>
+                          <div className="font-bold text-gray-900">{candidate.name || '既存候補名なし'}</div>
                           <div className="text-xs text-gray-500">{candidate.email || '-'} / score {candidate.score}</div>
                           <div className="mt-2 flex flex-wrap gap-1">
                             {(candidate.reasons || []).map((reason) => (
@@ -374,7 +374,7 @@ function CustomerBox({
 }) {
   return (
     <div className="mt-2 rounded-xl border border-green-200 bg-green-50 p-4">
-      <div className="text-base font-black text-green-950">{name || '名前未登録'}</div>
+      <div className="text-base font-black text-green-950">{name || '既存候補名なし'}</div>
       <div className="mt-1 text-xs text-green-800">{email || '-'} / {typeName || '-'} / Lane {lane || '-'}</div>
       {typeof score === 'number' && <div className="mt-1 text-xs font-bold text-green-700">候補スコア: {score}</div>}
       <div className="mt-3 flex flex-wrap gap-1">
