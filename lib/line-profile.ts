@@ -44,3 +44,25 @@ export async function fetchLineProfile(accountKey: string, lineUserId: string): 
     return null
   }
 }
+
+export async function fetchLineProfileDiagnostic(accountKey: string, lineUserId: string): Promise<{ profile: LineProfile | null; status: number | null; ok: boolean; reason: string }> {
+  const token = getLineChannelAccessToken(accountKey)
+  if (!token) return { profile: null, status: null, ok: false, reason: 'missing_channel_access_token' }
+  if (!lineUserId) return { profile: null, status: null, ok: false, reason: 'missing_line_user_id' }
+
+  try {
+    const response = await fetch(`https://api.line.me/v2/bot/profile/${encodeURIComponent(lineUserId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+    if (!response.ok) {
+      return { profile: null, status: response.status, ok: false, reason: `line_api_${response.status}` }
+    }
+    const profile = await response.json() as LineProfile
+    if (!profile.displayName) return { profile: null, status: response.status, ok: false, reason: 'missing_display_name' }
+    return { profile, status: response.status, ok: true, reason: 'ok' }
+  } catch (error) {
+    console.error('line profile diagnostic error:', error)
+    return { profile: null, status: null, ok: false, reason: 'fetch_error' }
+  }
+}

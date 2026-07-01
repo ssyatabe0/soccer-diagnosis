@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { fetchLineProfile, getLineChannelAccessToken } from '@/lib/line-profile'
+import { fetchLineProfileDiagnostic, getLineChannelAccessToken } from '@/lib/line-profile'
 
 type LineAccountRow = {
   customer_id: string
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
   const rows = (data || []) as LineAccountRow[]
   const accountKeys = rows.map((row) => row.account_key)
   const token_status = tokenStatus(accountKeys)
-  const items: Array<{ account_key: string; line_user_id_tail: string; before: string | null; after: string | null; status: string }> = []
+  const items: Array<{ account_key: string; line_user_id_tail: string; before: string | null; after: string | null; status: string; line_api_status?: number | null }> = []
   let updated = 0
   let skippedNoToken = 0
   let alreadyHadName = 0
@@ -83,27 +83,27 @@ export async function POST(request: NextRequest) {
       continue
     }
 
-    const profile = await fetchLineProfile(row.account_key, row.line_user_id)
-    if (!profile?.displayName) {
+    const diagnostic = await fetchLineProfileDiagnostic(row.account_key, row.line_user_id)
+    if (!diagnostic.profile?.displayName) {
       failed += 1
-      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: null, status: 'profile_fetch_failed' })
+      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: null, status: diagnostic.reason, line_api_status: diagnostic.status })
       continue
     }
 
     const { error: updateError } = await supabase
       .from('customer_line_accounts')
-      .update({ display_name: profile.displayName, updated_at: new Date().toISOString() })
+      .update({ display_name: diagnostic.profile.displayName, updated_at: new Date().toISOString() })
       .eq('account_key', row.account_key)
       .eq('line_user_id', row.line_user_id)
 
     if (updateError) {
       failed += 1
-      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: profile.displayName, status: `update_failed: ${updateError.message}` })
+      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: diagnostic.profile.displayName, status: `update_failed: ${updateError.message}`, line_api_status: diagnostic.status })
       continue
     }
 
     updated += 1
-    items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: profile.displayName, status: 'updated' })
+    items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: diagnostic.profile.displayName, status: 'updated', line_api_status: diagnostic.status })
   }
 
   return NextResponse.json({
