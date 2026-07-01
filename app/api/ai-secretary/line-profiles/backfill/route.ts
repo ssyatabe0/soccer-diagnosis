@@ -40,6 +40,25 @@ function tokenStatus(accountKeys: string[]) {
   }))
 }
 
+async function fetchProfileWithAnyConfiguredToken(preferredAccountKey: string, lineUserId: string) {
+  const accountKeys = [...new Set([preferredAccountKey, ...KNOWN_ACCOUNTS])]
+  const attempts: Array<{ account_key: string; status: number | null; reason: string }> = []
+
+  for (const accountKey of accountKeys) {
+    if (!getLineChannelAccessToken(accountKey)) {
+      attempts.push({ account_key: accountKey, status: null, reason: 'missing_channel_access_token' })
+      continue
+    }
+    const diagnostic = await fetchLineProfileDiagnostic(accountKey, lineUserId)
+    attempts.push({ account_key: accountKey, status: diagnostic.status, reason: diagnostic.reason })
+    if (diagnostic.profile?.displayName) {
+      return { ...diagnostic, resolved_account_key: accountKey, attempts }
+    }
+  }
+
+  return { profile: null, status: attempts[0]?.status || null, ok: false, reason: attempts[0]?.reason || 'profile_fetch_failed', resolved_account_key: null, attempts }
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -64,7 +83,7 @@ export async function POST(request: NextRequest) {
   const rows = (data || []) as LineAccountRow[]
   const accountKeys = rows.map((row) => row.account_key)
   const token_status = tokenStatus(accountKeys)
-  const items: Array<{ account_key: string; line_user_id_tail: string; before: string | null; after: string | null; status: string; line_api_status?: number | null }> = []
+  const items: Array<{ account_key: string; line_user_id_tail: string; before: string | null; after: string | null; status: string; line_api_status?: number | null; resolved_account_key?: string | null; attempts?: Array<{ account_key: string; status: number | null; reason: string }> }> = []
   let updated = 0
   let skippedNoToken = 0
   let alreadyHadName = 0
@@ -83,10 +102,10 @@ export async function POST(request: NextRequest) {
       continue
     }
 
-    const diagnostic = await fetchLineProfileDiagnostic(row.account_key, row.line_user_id)
+    const diagnostic = await fetchProfileWithAnyConfiguredToken(row.account_key, row.line_user_id)
     if (!diagnostic.profile?.displayName) {
       failed += 1
-      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: null, status: diagnostic.reason, line_api_status: diagnostic.status })
+      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: null, status: diagnostic.reason, line_api_status: diagnostic.status, resolved_account_key: diagnostic.resolved_account_key, attempts: diagnostic.attempts })
       continue
     }
 
@@ -98,12 +117,12 @@ export async function POST(request: NextRequest) {
 
     if (updateError) {
       failed += 1
-      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: diagnostic.profile.displayName, status: `update_failed: ${updateError.message}`, line_api_status: diagnostic.status })
+      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: diagnostic.profile.displayName, status: `update_failed: ${updateError.message}`, line_api_status: diagnostic.status, resolved_account_key: diagnostic.resolved_account_key, attempts: diagnostic.attempts })
       continue
     }
 
     updated += 1
-    items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: diagnostic.profile.displayName, status: 'updated', line_api_status: diagnostic.status })
+    items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: diagnostic.profile.displayName, status: 'updated', line_api_status: diagnostic.status, resolved_account_key: diagnostic.resolved_account_key, attempts: diagnostic.attempts })
   }
 
   return NextResponse.json({
