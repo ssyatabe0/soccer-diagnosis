@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { buildCustomerProfileUpdate, extractCustomerProfileFromTexts } from '@/lib/ai-secretary/customer-profile-extractor'
-import { fetchLineProfile } from '@/lib/line-profile'
+import { fallbackLineAccountName, fetchLineProfile } from '@/lib/line-profile'
 
 type LineWebhookEvent = {
   type: string
@@ -138,6 +138,7 @@ async function ensureCustomerForLineMessage(
 ) {
   if (!input.lineUserId) return null
   const lineProfile = await fetchLineProfile(input.accountKey, input.lineUserId)
+  const safeDisplayName = lineProfile?.displayName || fallbackLineAccountName(input.lineUserId)
 
   const { data: existingLink } = await supabase
     .from('customer_line_accounts')
@@ -173,7 +174,7 @@ async function ensureCustomerForLineMessage(
     await supabase
       .from('customer_line_accounts')
       .update({
-        ...(lineProfile?.displayName ? { display_name: lineProfile.displayName } : {}),
+        display_name: safeDisplayName,
         last_seen_at: input.occurredAt,
         updated_at: new Date().toISOString(),
       })
@@ -214,7 +215,7 @@ async function ensureCustomerForLineMessage(
     customer_id: customer.id,
     account_key: input.accountKey,
     line_user_id: input.lineUserId,
-    ...(lineProfile?.displayName ? { display_name: lineProfile.displayName } : {}),
+    display_name: safeDisplayName,
     first_seen_at: input.occurredAt,
     last_seen_at: input.occurredAt,
   })

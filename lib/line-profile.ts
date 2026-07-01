@@ -16,6 +16,16 @@ function normalizeAccountKey(value: string | null | undefined) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_')
 }
 
+export function fallbackLineAccountName(lineUserId: string | null | undefined) {
+  const value = String(lineUserId || '').trim()
+  if (!value) return 'LINEアカウント'
+  return `LINEアカウント-${value.slice(-6)}`
+}
+
+export function isFallbackLineAccountName(value: string | null | undefined) {
+  return /^LINEアカウント(?:-[a-zA-Z0-9_-]{2,})?$/.test(String(value || ''))
+}
+
 export function getLineChannelAccessToken(accountKey: string | null | undefined) {
   const normalized = normalizeAccountKey(accountKey)
   const envNames = ACCOUNT_TOKEN_ENV[normalized] || []

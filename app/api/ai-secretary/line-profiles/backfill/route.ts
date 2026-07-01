@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { fetchLineProfileDiagnostic, getLineChannelAccessToken } from '@/lib/line-profile'
+import { fallbackLineAccountName, fetchLineProfileDiagnostic, getLineChannelAccessToken, isFallbackLineAccountName } from '@/lib/line-profile'
 
 type LineAccountRow = {
   customer_id: string
@@ -85,50 +85,45 @@ export async function POST(request: NextRequest) {
   const token_status = tokenStatus(accountKeys)
   const items: Array<{ account_key: string; line_user_id_tail: string; before: string | null; after: string | null; status: string; line_api_status?: number | null; resolved_account_key?: string | null; attempts?: Array<{ account_key: string; status: number | null; reason: string }> }> = []
   let updated = 0
-  let skippedNoToken = 0
+  const skippedNoToken = 0
   let alreadyHadName = 0
+  let fallbackUpdated = 0
   let failed = 0
 
   for (const row of rows) {
-    if (row.display_name) {
+    if (row.display_name && !isFallbackLineAccountName(row.display_name)) {
       alreadyHadName += 1
       items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: row.display_name, after: row.display_name, status: 'already_has_display_name' })
       continue
     }
 
-    if (!getLineChannelAccessToken(row.account_key)) {
-      skippedNoToken += 1
-      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: null, status: 'missing_channel_access_token' })
-      continue
-    }
-
     const diagnostic = await fetchProfileWithAnyConfiguredToken(row.account_key, row.line_user_id)
+    const resolvedDisplayName = diagnostic.profile?.displayName || fallbackLineAccountName(row.line_user_id)
     if (!diagnostic.profile?.displayName) {
-      failed += 1
-      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: null, status: diagnostic.reason, line_api_status: diagnostic.status, resolved_account_key: diagnostic.resolved_account_key, attempts: diagnostic.attempts })
-      continue
+      fallbackUpdated += 1
     }
 
     const { error: updateError } = await supabase
       .from('customer_line_accounts')
-      .update({ display_name: diagnostic.profile.displayName, updated_at: new Date().toISOString() })
+      .update({ display_name: resolvedDisplayName, updated_at: new Date().toISOString() })
       .eq('account_key', row.account_key)
       .eq('line_user_id', row.line_user_id)
 
     if (updateError) {
       failed += 1
-      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: diagnostic.profile.displayName, status: `update_failed: ${updateError.message}`, line_api_status: diagnostic.status, resolved_account_key: diagnostic.resolved_account_key, attempts: diagnostic.attempts })
+      items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: row.display_name, after: resolvedDisplayName, status: `update_failed: ${updateError.message}`, line_api_status: diagnostic.status, resolved_account_key: diagnostic.resolved_account_key, attempts: diagnostic.attempts })
       continue
     }
 
     updated += 1
-    items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: null, after: diagnostic.profile.displayName, status: 'updated', line_api_status: diagnostic.status, resolved_account_key: diagnostic.resolved_account_key, attempts: diagnostic.attempts })
+    items.push({ account_key: row.account_key, line_user_id_tail: row.line_user_id.slice(-6), before: row.display_name, after: resolvedDisplayName, status: diagnostic.profile?.displayName ? 'updated' : 'fallback_updated', line_api_status: diagnostic.status, resolved_account_key: diagnostic.resolved_account_key, attempts: diagnostic.attempts })
   }
 
   return NextResponse.json({
     checked: rows.length,
     updated,
     already_had_name: alreadyHadName,
+    fallback_updated: fallbackUpdated,
     skipped_no_token: skippedNoToken,
     failed,
     token_status,
