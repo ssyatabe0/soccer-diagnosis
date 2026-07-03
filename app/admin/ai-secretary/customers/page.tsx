@@ -154,7 +154,7 @@ function aiMemoLine(memo: string | null) {
 function displayName(customer: CustomerRow) {
   const lineName = customer.line_display_names?.[0]
   const dateLabel = formatDateOnly(customer.inquiry_date || customer.last_contact_at)
-  return customer.full_name || customer.child_name || customer.parent_name || lineName || `${dateLabel}のLINE相談`
+  return lineName || customer.full_name || customer.child_name || customer.parent_name || `${dateLabel}のLINE相談`
 }
 
 function needsNameConfirmation(customer: CustomerRow) {
