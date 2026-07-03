@@ -151,10 +151,19 @@ function aiMemoLine(memo: string | null) {
   return line ? line.replace(/^AI履歴要約:\\s*/, '').replace(/^AI履歴整理:\\s*/, '') : ''
 }
 
+function isSyntheticLineName(value: string | null | undefined) {
+  if (!value) return true
+  return /^LINEアカウント-[a-zA-Z0-9_-]{4,}$/.test(value) || /^\d{4}\/\d{2}\/\d{2}のLINE相談$/.test(value)
+}
+
+function realLineDisplayNames(customer: CustomerRow) {
+  return (customer.line_display_names || []).filter((name) => !isSyntheticLineName(name))
+}
+
 function displayName(customer: CustomerRow) {
-  const lineName = customer.line_display_names?.[0]
+  const lineName = realLineDisplayNames(customer)[0]
   const dateLabel = formatDateOnly(customer.inquiry_date || customer.last_contact_at)
-  return lineName || customer.full_name || customer.child_name || customer.parent_name || `${dateLabel}のLINE相談`
+  return lineName || customer.full_name || customer.parent_name || customer.child_name || `${dateLabel}のLINE相談`
 }
 
 function needsNameConfirmation(customer: CustomerRow) {
@@ -162,7 +171,7 @@ function needsNameConfirmation(customer: CustomerRow) {
 }
 
 function parentDisplayName(customer: CustomerRow) {
-  return customer.parent_name || customer.full_name || customer.line_display_names?.[0] || '-'
+  return customer.parent_name || customer.full_name || realLineDisplayNames(customer)[0] || '-'
 }
 
 export default async function AiSecretaryCustomersPage({ searchParams }: { searchParams?: Promise<SearchParams> | SearchParams }) {
@@ -230,7 +239,8 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
                 </div>
                 <h3 className="mt-3 text-lg font-black text-gray-900">{displayName(customer)}</h3>
                 {needsNameConfirmation(customer) && <p className="mt-1 text-xs font-bold text-gray-500">LINE履歴から内容確認。保護者名・選手名は必要な時だけ追記。</p>}
-                {(customer.line_display_names || []).length > 0 && <p className="mt-1 text-xs font-bold text-gray-500">LINE表示名: {(customer.line_display_names || []).join(' / ')}</p>}
+                {realLineDisplayNames(customer).length > 0 && <p className="mt-1 text-xs font-bold text-gray-500">LINE表示名: {realLineDisplayNames(customer).join(' / ')}</p>}
+                {realLineDisplayNames(customer).length === 0 && (customer.line_display_names || []).length > 0 && <p className="mt-1 text-xs font-bold text-red-600">LINE表示名: 未取得（仮IDは非表示）</p>}
                 <p className="mt-1 text-sm text-gray-500">保護者: {parentDisplayName(customer)} / 子ども: {customer.child_name || '-'} / 学年: {customer.grade || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">地域: {customer.region || '-'} / 所属: {customer.team_name || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">メール: {customer.email || '-'} / 電話: {customer.phone || '-'}</p>
