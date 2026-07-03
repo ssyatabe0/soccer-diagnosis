@@ -55,3 +55,53 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ status: 'ok', contract: data })
 }
+
+export async function PATCH(request: NextRequest) {
+  if (!isAiSecretaryAuthorized(request)) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  const supabase = getServiceClient()
+  if (!supabase) return NextResponse.json({ error: 'supabase_not_configured' }, { status: 500 })
+
+  const body = await request.json().catch(() => null)
+  const id = cleanText(body?.id, 80)
+  const customerId = cleanText(body?.customer_id, 80)
+  if (!id) return NextResponse.json({ error: 'contract_id_required' }, { status: 400 })
+
+  const updates: Record<string, string | number | null> = {}
+  const textFields = ['status', 'purchase_date', 'start_date', 'first_usage_date', 'valid_until', 'payment_status', 'notes']
+  for (const field of textFields) {
+    if (Object.prototype.hasOwnProperty.call(body || {}, field)) {
+      updates[field] = cleanText(body?.[field], field === 'notes' ? 5000 : 80)
+    }
+  }
+
+  const numberFields = ['purchased_count', 'used_count', 'amount', 'monthly_fee']
+  for (const field of numberFields) {
+    if (Object.prototype.hasOwnProperty.call(body || {}, field)) {
+      updates[field] = cleanNumber(body?.[field])
+    }
+  }
+
+  updates.updated_at = new Date().toISOString()
+
+  let query = supabase.from('contracts').update(updates).eq('id', id)
+  if (customerId) query = query.eq('customer_id', customerId)
+
+  const { data, error } = await query.select('*').single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await supabase.from('customer_timeline_events').insert({
+    customer_id: data.customer_id,
+    event_type: 'memo',
+    title: '契約情報更新',
+    body: cleanText(body?.timeline_note) || updates.notes || '契約情報を更新しました。',
+    source: 'admin',
+    source_table: 'contracts',
+    source_id: data.id,
+    occurred_at: new Date().toISOString(),
+  })
+
+  return NextResponse.json({ status: 'ok', contract: data })
+}
