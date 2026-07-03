@@ -18,33 +18,38 @@ export async function POST(request: NextRequest) {
   if (!isAiSecretaryAuthorized(request)) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   const supabase = getServiceClient()
   if (!supabase) return NextResponse.json({ error: 'supabase_not_configured' }, { status: 500 })
+  const { searchParams } = new URL(request.url)
+  const body = await request.json().catch(() => null)
+  const includeSalesCandidates = searchParams.get('include_sales_candidates') === 'true' || body?.include_sales_candidates === true
 
   const { data: candidates, error } = await supabase.from('ai_secretary_sales_candidates').select('*').limit(200)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const inserted = []
-  for (const candidate of (candidates || []) as SalesCandidate[]) {
-    const { data: existing } = await supabase
-      .from('follow_tasks')
-      .select('id')
-      .eq('customer_id', candidate.customer_id)
-      .eq('task_type', candidate.candidate_type)
-      .eq('status', 'open')
-      .limit(1)
-    if (existing && existing.length > 0) continue
+  if (includeSalesCandidates) {
+    for (const candidate of (candidates || []) as SalesCandidate[]) {
+      const { data: existing } = await supabase
+        .from('follow_tasks')
+        .select('id')
+        .eq('customer_id', candidate.customer_id)
+        .eq('task_type', candidate.candidate_type)
+        .eq('status', 'open')
+        .limit(1)
+      if (existing && existing.length > 0) continue
 
-    const { data, error: insertError } = await supabase.from('follow_tasks').insert({
-      customer_id: candidate.customer_id,
-      contract_id: candidate.contract_id,
-      task_type: candidate.candidate_type,
-      title: titleFor(candidate.candidate_type),
-      due_date: new Date().toISOString().slice(0, 10),
-      priority: candidate.priority || 'medium',
-      ai_reason: candidate.ai_reason,
-      notes: 'AI売上候補から自動生成。送信はしない。',
-    }).select('*').single()
-    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
-    inserted.push(data)
+      const { data, error: insertError } = await supabase.from('follow_tasks').insert({
+        customer_id: candidate.customer_id,
+        contract_id: candidate.contract_id,
+        task_type: candidate.candidate_type,
+        title: titleFor(candidate.candidate_type),
+        due_date: new Date().toISOString().slice(0, 10),
+        priority: candidate.priority || 'medium',
+        ai_reason: candidate.ai_reason,
+        notes: 'AI売上候補から自動生成。送信はしない。',
+      }).select('*').single()
+      if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+      inserted.push(data)
+    }
   }
 
   for (const task of buildPaceRiskTasks((candidates || []) as SalesCandidate[])) {
