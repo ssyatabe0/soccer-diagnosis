@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 
 type SearchParams = Record<string, string | string[] | undefined>
-type LineItem = { id: number; customer_id: string | null; body: string; account_display_name: string | null; customer_full_name: string | null; customer_parent_name: string | null; customer_child_name: string | null; ai_summary: string | null; ai_reply_draft: string | null; occurred_at: string }
+type LineItem = { id: number; customer_id: string | null; account_key?: string | null; line_user_id?: string | null; line_display_name?: string | null; body: string; account_display_name: string | null; customer_full_name: string | null; customer_parent_name: string | null; customer_child_name: string | null; ai_summary: string | null; ai_reply_draft: string | null; occurred_at: string }
 type GmailItem = { id: number; customer_id: string | null; from_email: string | null; subject: string | null; snippet: string | null; ai_summary: string | null; ai_reply_draft: string | null; occurred_at: string | null }
 
 type Inquiry = { id: number; customer_id?: string | null; source?: string | null; title?: string | null; body?: string | null; created_at?: string | null; ai_summary?: string | null }
@@ -11,7 +11,7 @@ function getServiceClient() { const url = process.env.NEXT_PUBLIC_SUPABASE_URL; 
 function valueOf(value: string | string[] | undefined, fallback = '') { return Array.isArray(value) ? value[0] || fallback : value || fallback }
 async function getSearchParams(input: Promise<SearchParams> | SearchParams | undefined) { return input ? await Promise.resolve(input) : {} }
 function formatDateTime(value: string | null | undefined) { if (!value) return '-'; return new Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) }
-function lineName(item: LineItem) { return item.customer_full_name || item.customer_parent_name || item.customer_child_name || `${formatDateTime(item.occurred_at).slice(0, 5)}のLINE相談` }
+function lineName(item: LineItem) { return item.line_display_name || item.customer_full_name || item.customer_parent_name || item.customer_child_name || `${formatDateTime(item.occurred_at).slice(0, 5)}のLINE相談` }
 function hrefForCustomer(id: string | null | undefined, token: string) { return id ? `/admin/ai-secretary/customers/${id}?token=${encodeURIComponent(token)}` : `/admin/ai-secretary/customers?token=${encodeURIComponent(token)}` }
 function lineDraft(text: string) { const compact = text.replace(/\s+/g, ' ').slice(0, 90); return `ご連絡ありがとうございます。\n内容確認しました。\n「${compact}」について確認して、改めてご案内いたします。\n谷田部` }
 function mailDraft(subject: string | null) { return `お問い合わせありがとうございます。\n${subject ? `「${subject}」の件、` : ''}内容を確認しました。\n詳細を確認のうえ、改めてご連絡いたします。\n谷田部` }
@@ -26,7 +26,25 @@ async function loadInbox() {
   ])
   const inquiryMissing = inquiryResult.error && /relation .* does not exist/i.test(inquiryResult.error.message)
   const error = lineResult.error?.message || gmailResult.error?.message || (!inquiryMissing ? inquiryResult.error?.message : null) || null
-  return { error, lines: (lineResult.data || []) as LineItem[], gmail: (gmailResult.data || []) as GmailItem[], inquiries: (inquiryResult.data || []) as Inquiry[] }
+  const lineRows = (lineResult.data || []) as LineItem[]
+  const accountKeys = [...new Set(lineRows.map((item) => item.account_key).filter(Boolean))] as string[]
+  const lineUserIds = [...new Set(lineRows.map((item) => item.line_user_id).filter(Boolean))] as string[]
+  const displayNameMap = new Map<string, string>()
+  if (accountKeys.length > 0 && lineUserIds.length > 0) {
+    const { data: lineAccounts } = await supabase
+      .from('customer_line_accounts')
+      .select('account_key,line_user_id,display_name')
+      .in('account_key', accountKeys)
+      .in('line_user_id', lineUserIds)
+    for (const account of (lineAccounts || []) as Array<{ account_key: string; line_user_id: string; display_name: string | null }>) {
+      if (account.display_name) displayNameMap.set(`${account.account_key}:${account.line_user_id}`, account.display_name)
+    }
+  }
+  const lines = lineRows.map((item) => ({
+    ...item,
+    line_display_name: item.account_key && item.line_user_id ? displayNameMap.get(`${item.account_key}:${item.line_user_id}`) || item.line_display_name || null : item.line_display_name || null,
+  }))
+  return { error, lines, gmail: (gmailResult.data || []) as GmailItem[], inquiries: (inquiryResult.data || []) as Inquiry[] }
 }
 
 export default async function InboxPage({ searchParams }: { searchParams?: Promise<SearchParams> | SearchParams }) {
