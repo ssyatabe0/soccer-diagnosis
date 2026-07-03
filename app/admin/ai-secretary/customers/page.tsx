@@ -186,6 +186,7 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
         <div className="flex flex-wrap gap-2">
           <Link href={`/admin/ai-secretary/dashboard?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">今日の対応へ</Link>
           <Link href={`/admin/ai-secretary/line-inbox?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">LINE未対応へ</Link>
+          <Link href={`/admin/ai-secretary/line-names?token=${encodeURIComponent(token)}`} className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700">LINE名復旧へ</Link>
         </div>
       </div>
 
