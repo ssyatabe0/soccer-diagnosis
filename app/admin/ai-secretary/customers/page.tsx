@@ -161,6 +161,10 @@ function needsNameConfirmation(customer: CustomerRow) {
   return !customer.full_name && !customer.parent_name && !customer.child_name
 }
 
+function parentDisplayName(customer: CustomerRow) {
+  return customer.parent_name || customer.full_name || customer.line_display_names?.[0] || '-'
+}
+
 export default async function AiSecretaryCustomersPage({ searchParams }: { searchParams?: Promise<SearchParams> | SearchParams }) {
   const params = await getSearchParams(searchParams)
   const token = valueOf(params.token)
@@ -227,7 +231,7 @@ export default async function AiSecretaryCustomersPage({ searchParams }: { searc
                 <h3 className="mt-3 text-lg font-black text-gray-900">{displayName(customer)}</h3>
                 {needsNameConfirmation(customer) && <p className="mt-1 text-xs font-bold text-gray-500">LINE履歴から内容確認。保護者名・選手名は必要な時だけ追記。</p>}
                 {(customer.line_display_names || []).length > 0 && <p className="mt-1 text-xs font-bold text-gray-500">LINE表示名: {(customer.line_display_names || []).join(' / ')}</p>}
-                <p className="mt-1 text-sm text-gray-500">保護者: {customer.parent_name || '-'} / 子ども: {customer.child_name || '-'} / 学年: {customer.grade || '-'}</p>
+                <p className="mt-1 text-sm text-gray-500">保護者: {parentDisplayName(customer)} / 子ども: {customer.child_name || '-'} / 学年: {customer.grade || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">地域: {customer.region || '-'} / 所属: {customer.team_name || '-'}</p>
                 <p className="mt-1 text-sm text-gray-500">メール: {customer.email || '-'} / 電話: {customer.phone || '-'}</p>
                 <p className="mt-2 text-sm font-bold text-gray-700">
