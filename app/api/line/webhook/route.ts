@@ -16,6 +16,16 @@ https://soccer-kateikyousi.com/
 `
 
 const LINE_AUTO_REPLY_ENABLED = process.env.LINE_AUTO_REPLY_ENABLED === 'true'
+const LINE_BASIC_INFO_AUTO_REPLY_ENABLED = process.env.LINE_BASIC_INFO_AUTO_REPLY_ENABLED !== 'false'
+
+const REQUIRED_INFO_FIELDS = [
+  { key: 'parent_name', label: '保護者様のお名前' },
+  { key: 'child_name', label: 'お子様のお名前' },
+  { key: 'grade', label: '学年' },
+  { key: 'area', label: 'ご住所、またはレッスン希望エリア' },
+  { key: 'phone', label: 'お電話番号' },
+  { key: 'desired_time', label: 'ご希望日時' },
+] as const
 
 function extractType(text: string): string | null {
   const normalized = text
@@ -318,6 +328,80 @@ ${CTA}`
   }
 }
 
+function hasParentName(text: string) {
+  return /保護者.{0,8}(氏名|名前)|父[:：]|母[:：]|保護者[:：]/.test(text) || /[一-龠ぁ-んァ-ン]{2,12}(です|と申します)/.test(text)
+}
+
+function hasChildName(text: string) {
+  return /(子供|子ども|お子|選手).{0,8}(氏名|名前)|子供[:：]|子ども[:：]|お子様[:：]|選手[:：]/.test(text)
+}
+
+function hasGrade(text: string) {
+  return /小学|小[1-6１-６]|中学|中[1-3１-３]|高校|高[1-3１-３]|年長|年中|年少|学年/.test(text)
+}
+
+function hasArea(text: string) {
+  return /住所|在住|エリア|希望場所|場所|最寄|駅|区|市|町|村|都|県|公園|グラウンド/.test(text)
+}
+
+function hasPhone(text: string) {
+  return /電話|tel|TEL|0\d{1,4}[-ー\s]?\d{1,4}[-ー\s]?\d{3,4}/.test(text)
+}
+
+function hasDesiredTime(text: string) {
+  return /希望日時|希望日|候補日|日程|予約|空き|[0-9０-９]{1,2}\/[0-9０-９]{1,2}|[0-9０-９]{1,2}月[0-9０-９]{1,2}日|[0-9０-９]{1,2}時|午前|午後|平日|土日|月曜|火曜|水曜|木曜|金曜|土曜|日曜/.test(text)
+}
+
+function shouldIgnoreBasicInfoAutoReply(text: string) {
+  const compact = text.replace(/\s+/g, '')
+  if (!compact) return true
+  if (/^(ありがとうございます|ありがとう|承知しました|了解です|よろしくお願いします|よろしくお願いいたします|はい|いいえ|大丈夫です)[。!！、]*$/.test(compact)) return true
+  return /休み|欠席|中止|キャンセル|遅れ|遅刻|到着|向かって|出発|振込|支払|入金|領収|変更の場合|体調不良/.test(text)
+}
+
+function isBasicInfoAutoReplyCandidate(text: string) {
+  if (shouldIgnoreBasicInfoAutoReply(text)) return false
+  return /体験|問い合わせ|相談|診断|レッスン|個人|家庭教師|予約|日程|空き|候補日|希望|可能|できます|お願い|料金|費用|参加|入会|回数券|サッカー|ドリブル|足技|キッズ|SYSC|セレクション|見て|受け/.test(text)
+}
+
+function missingBasicInfoFields(text: string) {
+  const present = {
+    parent_name: hasParentName(text),
+    child_name: hasChildName(text),
+    grade: hasGrade(text),
+    area: hasArea(text),
+    phone: hasPhone(text),
+    desired_time: hasDesiredTime(text),
+  }
+
+  return REQUIRED_INFO_FIELDS.filter((field) => !present[field.key]).map((field) => field.label)
+}
+
+function buildBasicInfoAutoReply(text: string) {
+  if (!isBasicInfoAutoReplyCandidate(text)) return ''
+
+  const missingFields = missingBasicInfoFields(text)
+  if (missingFields.length === 0) return ''
+
+  const intro = missingFields.length >= 5
+    ? '詳しく確認してご案内いたしますので、差し支えなければ以下をお知らせください。'
+    : 'いただいている内容は確認しました。追加で、まだ分かっていない以下だけお知らせいただけますでしょうか。'
+
+  return [
+    'お問い合わせありがとうございます。',
+    '',
+    intro,
+    '',
+    ...missingFields.map((field) => `・${field}`),
+    '',
+    '確認でき次第、日程や進め方をご案内いたします。',
+    '',
+    'お待ちしております。',
+    '',
+    '谷田部',
+  ].join('\n')
+}
+
 function getAccountKey(req: NextRequest, destination?: string | null) {
   const explicitAccount = req.nextUrl.searchParams.get('account') || req.nextUrl.searchParams.get('account_key')
   if (explicitAccount) return explicitAccount
@@ -347,16 +431,14 @@ export async function POST(req: NextRequest) {
       const replyToken = event.replyToken
 
       const type = extractType(text)
-      const replyText = type
-        ? buildReply(type)
-        : `タイプがうまく取得できません。
-
-「突進型」など一言送ってください。`
+      const replyText = type ? buildReply(type) : buildBasicInfoAutoReply(text)
 
       let lineReplyStatus: number | undefined
       let lineReplyOk: boolean | undefined
 
-      if (LINE_AUTO_REPLY_ENABLED && replyToken && process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+      const canAutoReply = type ? LINE_AUTO_REPLY_ENABLED : LINE_BASIC_INFO_AUTO_REPLY_ENABLED
+
+      if (canAutoReply && replyText && replyToken && process.env.LINE_CHANNEL_ACCESS_TOKEN) {
         try {
           const lineReplyResponse = await fetch('https://api.line.me/v2/bot/message/reply', {
             method: 'POST',
