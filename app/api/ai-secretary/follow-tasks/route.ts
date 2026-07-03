@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
     priority: cleanText(body?.priority, 20) || 'medium',
     ai_reason: cleanText(body?.ai_reason),
     notes: cleanText(body?.notes),
+    draft_message: cleanText(body?.draft_message),
   }
 
   const { data, error } = await supabase.from('follow_tasks').insert(task).select('*').single()
