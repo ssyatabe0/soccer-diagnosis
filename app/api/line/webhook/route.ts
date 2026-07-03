@@ -22,7 +22,7 @@ const REQUIRED_INFO_FIELDS = [
   { key: 'parent_name', label: '保護者様のお名前' },
   { key: 'child_name', label: 'お子様のお名前' },
   { key: 'grade', label: '学年' },
-  { key: 'area', label: 'ご住所、またはレッスン希望エリア' },
+  { key: 'area', label: 'ご住所' },
   { key: 'phone', label: 'お電話番号' },
   { key: 'desired_time', label: 'ご希望日時' },
 ] as const
@@ -383,14 +383,10 @@ function buildBasicInfoAutoReply(text: string) {
   const missingFields = missingBasicInfoFields(text)
   if (missingFields.length === 0) return ''
 
-  const intro = missingFields.length >= 5
-    ? '詳しく確認してご案内いたしますので、差し支えなければ以下をお知らせください。'
-    : 'いただいている内容は確認しました。追加で、まだ分かっていない以下だけお知らせいただけますでしょうか。'
-
   return [
     'お問い合わせありがとうございます。',
     '',
-    intro,
+    '詳しく確認してご案内いたしますので、以下をお知らせください。',
     '',
     ...missingFields.map((field) => `・${field}`),
     '',
