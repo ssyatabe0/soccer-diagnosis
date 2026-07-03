@@ -417,6 +417,24 @@ function getAccountKey(req: NextRequest, destination?: string | null) {
   }
 }
 
+function getLineChannelAccessToken(accountKey: string) {
+  const envKey = `LINE_CHANNEL_ACCESS_TOKEN_${accountKey.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`
+  const directToken = process.env[envKey]
+  if (directToken) return directToken
+
+  const rawMap = process.env.LINE_CHANNEL_ACCESS_TOKEN_MAP
+  if (rawMap) {
+    try {
+      const map = JSON.parse(rawMap) as Record<string, string>
+      if (map[accountKey]) return map[accountKey]
+    } catch {
+      // Fall back to the legacy single-account token below.
+    }
+  }
+
+  return process.env.LINE_CHANNEL_ACCESS_TOKEN || ''
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -429,6 +447,7 @@ export async function POST(req: NextRequest) {
 
       const text = event.message.text || ''
       const replyToken = event.replyToken
+      const lineChannelAccessToken = getLineChannelAccessToken(accountKey)
 
       const type = extractType(text)
       const replyText = type ? buildReply(type) : buildBasicInfoAutoReply(text)
@@ -438,13 +457,13 @@ export async function POST(req: NextRequest) {
 
       const canAutoReply = type ? LINE_AUTO_REPLY_ENABLED : LINE_BASIC_INFO_AUTO_REPLY_ENABLED
 
-      if (canAutoReply && replyText && replyToken && process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+      if (canAutoReply && replyText && replyToken && lineChannelAccessToken) {
         try {
           const lineReplyResponse = await fetch('https://api.line.me/v2/bot/message/reply', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+              Authorization: `Bearer ${lineChannelAccessToken}`,
             },
             body: JSON.stringify({
               replyToken,
