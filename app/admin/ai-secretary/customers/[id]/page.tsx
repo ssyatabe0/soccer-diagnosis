@@ -353,6 +353,14 @@ function formatYen(value: number | null) {
   return `${value.toLocaleString()}円`
 }
 
+function primaryDisplayName(customer: Customer, lineAccounts: CustomerLineAccount[]) {
+  return lineAccounts.find((account) => account.display_name)?.display_name
+    || customer.full_name
+    || customer.child_name
+    || customer.parent_name
+    || 'LINE相談'
+}
+
 export default async function AiSecretaryCustomerDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams?: Promise<SearchParams> | SearchParams }) {
   const [{ id }, query] = await Promise.all([params, getSearchParams(searchParams)])
   const token = valueOf(query.token)
@@ -373,7 +381,7 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-bold text-green-700">Yatabe AI Secretary Phase2</p>
-          <h2 className="text-2xl font-black text-gray-900">顧客詳細</h2>
+          <h2 className="text-2xl font-black text-gray-900">{primaryDisplayName(customer, lineAccounts)}</h2>
           <p className="mt-1 text-sm text-gray-500">顧客マスタ、LINE履歴、問い合わせタイムラインを確認します。</p>
         </div>
         <Link href={`/admin/ai-secretary/customers?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">顧客一覧へ</Link>
