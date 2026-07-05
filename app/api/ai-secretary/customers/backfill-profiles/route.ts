@@ -71,6 +71,11 @@ function stripAiGeneratedMemoLines(memo: string | null) {
     .trim()
 }
 
+function isSyntheticLineName(value: string | null | undefined) {
+  if (!value) return true
+  return /^LINEアカウント-[a-zA-Z0-9_-]{4,}$/.test(value) || /^\d{4}\/\d{2}\/\d{2}のLINE相談$/.test(value)
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -124,7 +129,7 @@ export async function POST(request: NextRequest) {
   let fetchedLineProfiles = 0
   for (const account of (lineAccounts || []) as CustomerLineAccountRow[]) {
     let displayName = account.display_name
-    if (!displayName) {
+    if (isSyntheticLineName(displayName)) {
       const profile = await fetchLineProfile(account.account_key, account.line_user_id)
       displayName = profile?.displayName || null
       if (displayName) {
@@ -136,7 +141,7 @@ export async function POST(request: NextRequest) {
           .eq('line_user_id', account.line_user_id)
       }
     }
-    if (displayName) {
+    if (displayName && !isSyntheticLineName(displayName)) {
       const values = lineDisplayNames.get(account.customer_id) || []
       values.push(displayName)
       lineDisplayNames.set(account.customer_id, [...new Set(values)])
