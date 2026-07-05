@@ -358,8 +358,21 @@ function isSyntheticLineName(value: string | null | undefined) {
   return /^LINEアカウント-[a-zA-Z0-9_-]{4,}$/.test(value) || /^\d{4}\/\d{2}\/\d{2}のLINE相談$/.test(value)
 }
 
+function memoLineDisplayName(memo: string | null) {
+  if (!memo) return null
+  const line = memo.split('\n').find((item) => item.startsWith('AI表示名候補:'))
+  if (!line) return null
+  return line
+    .replace(/^AI表示名候補:\s*/, '')
+    .replace(/^LINE表示名\s*/, '')
+    .split('/')
+    .map((name) => name.trim())
+    .find((name) => name && !isSyntheticLineName(name)) || null
+}
+
 function primaryDisplayName(customer: Customer, lineAccounts: CustomerLineAccount[]) {
   return lineAccounts.find((account) => account.display_name && !isSyntheticLineName(account.display_name))?.display_name
+    || memoLineDisplayName(customer.memo)
     || customer.full_name
     || customer.parent_name
     || customer.child_name
@@ -401,7 +414,7 @@ export default async function AiSecretaryCustomerDetailPage({ params, searchPara
           <div className="mt-3 flex flex-wrap gap-2">
             {lineAccounts.map((account) => (
               <span key={`${account.account_key}-${account.line_user_id}`} className="rounded-full bg-white px-3 py-2 text-xs font-bold text-green-900 ring-1 ring-green-200">
-                {account.display_name && !isSyntheticLineName(account.display_name) ? account.display_name : '表示名未取得'} / {account.account_key} / 最終 {formatDate(account.last_seen_at)}
+                {account.display_name && !isSyntheticLineName(account.display_name) ? account.display_name : memoLineDisplayName(customer.memo) || '表示名未取得'} / {account.account_key} / 最終 {formatDate(account.last_seen_at)}
               </span>
             ))}
           </div>
