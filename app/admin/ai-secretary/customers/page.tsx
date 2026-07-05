@@ -151,13 +151,28 @@ function aiMemoLine(memo: string | null) {
   return line ? line.replace(/^AI履歴要約:\\s*/, '').replace(/^AI履歴整理:\\s*/, '') : ''
 }
 
+function memoLineDisplayNames(memo: string | null) {
+  if (!memo) return []
+  const line = memo.split('\n').find((item) => item.startsWith('AI表示名候補:'))
+  if (!line) return []
+  return line
+    .replace(/^AI表示名候補:\s*/, '')
+    .replace(/^LINE表示名\s*/, '')
+    .split('/')
+    .map((name) => name.trim())
+    .filter((name) => name && !isSyntheticLineName(name))
+}
+
 function isSyntheticLineName(value: string | null | undefined) {
   if (!value) return true
   return /^LINEアカウント-[a-zA-Z0-9_-]{4,}$/.test(value) || /^\d{4}\/\d{2}\/\d{2}のLINE相談$/.test(value)
 }
 
 function realLineDisplayNames(customer: CustomerRow) {
-  return (customer.line_display_names || []).filter((name) => !isSyntheticLineName(name))
+  return [...new Set([
+    ...(customer.line_display_names || []),
+    ...memoLineDisplayNames(customer.memo),
+  ].filter((name) => !isSyntheticLineName(name)))]
 }
 
 function displayName(customer: CustomerRow) {
