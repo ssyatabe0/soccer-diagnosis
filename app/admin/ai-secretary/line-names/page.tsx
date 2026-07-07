@@ -151,7 +151,6 @@ export default async function LineNamesPage({ searchParams }: { searchParams?: P
                   <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">末尾 {item.line_user_id.slice(-8)}</span>
                 </div>
                 <h3 className="mt-3 text-lg font-black text-gray-900">{visibleName(item)}</h3>
-                {isSyntheticName(item.display_name) && visibleName(item).startsWith('LINEアカウント-') === false && <p className="mt-1 text-xs font-bold text-orange-700">本文から暫定表示: {visibleName(item)}</p>}
                 <p className="mt-2 text-xs font-bold text-gray-500">line_user_id: <span className="select-all">{item.line_user_id}</span></p>
                 <p className="mt-3 whitespace-pre-wrap rounded-xl bg-gray-50 p-3 text-sm leading-7 text-gray-700">{item.latest?.body || item.latest?.ai_summary || 'メッセージ本文なし'}</p>
               </div>
