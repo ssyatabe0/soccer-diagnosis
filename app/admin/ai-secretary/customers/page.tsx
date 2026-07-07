@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
+import { inferLineDisplayNameFromText, isSyntheticLineDisplayName } from '@/lib/ai-secretary/line-name-inference'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -31,6 +32,12 @@ type CustomerRow = {
 type CustomerLineAccountRow = {
   customer_id: string
   display_name: string | null
+}
+
+type LatestLineMessageRow = {
+  customer_id: string | null
+  body: string | null
+  ai_summary: string | null
 }
 
 function getServiceClient() {
@@ -77,6 +84,20 @@ async function loadCustomers(status: string, serviceType: string, keyword: strin
       const values = lineDisplayNames.get(account.customer_id) || []
       values.push(account.display_name)
       lineDisplayNames.set(account.customer_id, [...new Set(values)])
+    }
+    const { data: latestLineMessages } = await supabase
+      .from('line_messages')
+      .select('customer_id,body,ai_summary')
+      .in('customer_id', ids)
+      .order('occurred_at', { ascending: false })
+      .limit(Math.min(ids.length * 10, 1000))
+    for (const message of (latestLineMessages || []) as LatestLineMessageRow[]) {
+      if (!message.customer_id || lineDisplayNames.get(message.customer_id)?.some((name) => !isSyntheticLineName(name))) continue
+      const inferred = inferLineDisplayNameFromText(message.body, message.ai_summary)
+      if (!inferred) continue
+      const values = lineDisplayNames.get(message.customer_id) || []
+      values.push(inferred)
+      lineDisplayNames.set(message.customer_id, [...new Set(values)])
     }
   }
   const enrichedRows = rows.map((customer) => ({
@@ -164,8 +185,7 @@ function memoLineDisplayNames(memo: string | null) {
 }
 
 function isSyntheticLineName(value: string | null | undefined) {
-  if (!value) return true
-  return /^LINEアカウント-[a-zA-Z0-9_-]{4,}$/.test(value) || /^\d{4}\/\d{2}\/\d{2}のLINE相談$/.test(value)
+  return isSyntheticLineDisplayName(value)
 }
 
 function realLineDisplayNames(customer: CustomerRow) {
