@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { inferLineDisplayNameFromText, isSyntheticLineDisplayName } from '@/lib/ai-secretary/line-name-inference'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -48,8 +49,12 @@ function formatDateTime(value: string | null | undefined) {
 }
 
 function isSyntheticName(value: string | null | undefined) {
-  if (!value) return true
-  return /^LINEアカウント-[a-zA-Z0-9_-]{4,}$/.test(value) || /^\d{4}\/\d{2}\/\d{2}のLINE相談$/.test(value)
+  return isSyntheticLineDisplayName(value)
+}
+
+function visibleName(item: LineAccountRow & { latest?: LineMessageRow }) {
+  if (!isSyntheticName(item.display_name)) return item.display_name || ''
+  return inferLineDisplayNameFromText(item.latest?.body, item.latest?.ai_summary) || `LINEアカウント-${item.line_user_id.slice(-6)}`
 }
 
 async function loadItems(showAll: boolean) {
@@ -145,7 +150,8 @@ export default async function LineNamesPage({ searchParams }: { searchParams?: P
                   <span className={`rounded-full px-3 py-1 ${isSyntheticName(item.display_name) ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{isSyntheticName(item.display_name) ? '名前要復旧' : '名前あり'}</span>
                   <span className="rounded-full bg-gray-100 px-3 py-1 text-gray-700">末尾 {item.line_user_id.slice(-8)}</span>
                 </div>
-                <h3 className="mt-3 text-lg font-black text-gray-900">{item.display_name || `LINEアカウント-${item.line_user_id.slice(-6)}`}</h3>
+                <h3 className="mt-3 text-lg font-black text-gray-900">{visibleName(item)}</h3>
+                {isSyntheticName(item.display_name) && visibleName(item).startsWith('LINEアカウント-') === false && <p className="mt-1 text-xs font-bold text-orange-700">本文から暫定表示: {visibleName(item)}</p>}
                 <p className="mt-2 text-xs font-bold text-gray-500">line_user_id: <span className="select-all">{item.line_user_id}</span></p>
                 <p className="mt-3 whitespace-pre-wrap rounded-xl bg-gray-50 p-3 text-sm leading-7 text-gray-700">{item.latest?.body || item.latest?.ai_summary || 'メッセージ本文なし'}</p>
               </div>
