@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { inferLineDisplayNameFromText, isSyntheticLineDisplayName } from '@/lib/ai-secretary/line-name-inference'
 
 type LineAccountRow = {
   customer_id: string
@@ -35,8 +36,7 @@ function isAuthorized(request: NextRequest) {
 }
 
 function isSyntheticName(value: string | null | undefined) {
-  if (!value) return true
-  return /^LINEアカウント-[a-zA-Z0-9_-]{4,}$/.test(value) || /^\d{4}\/\d{2}\/\d{2}のLINE相談$/.test(value)
+  return isSyntheticLineDisplayName(value)
 }
 
 function normalizeName(value: unknown) {
@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
       line_user_id: row.line_user_id,
       line_user_id_tail: row.line_user_id.slice(-8),
       display_name: row.display_name,
+      suggested_display_name: inferLineDisplayNameFromText(latest?.body, latest?.ai_summary),
       needs_real_name: isSyntheticName(row.display_name),
       first_seen_at: row.first_seen_at,
       last_seen_at: row.last_seen_at,
