@@ -23,6 +23,26 @@ const KNOWN_SURNAME_HINTS = [
 ]
 
 const BAD_CONTEXT = /(株式会社|営業|無料|資料|AI検索|Googleマップ|レポート|希望|サッカー家庭教師様)/
+const BAD_NAME_PHRASES = new Set([
+  'できます',
+  'できました',
+  'できましたら',
+  'いたします',
+  '致します',
+  'お願いします',
+  'お願いいたします',
+  'よろしくお願いします',
+  'よろしくお願いいたします',
+  '承知しました',
+  '承知いたしました',
+  '了解しました',
+  '了解いたしました',
+  'わかりました',
+  '分かりました',
+  'ありがとう',
+  'ありがとうございます',
+  'ございます',
+])
 
 function cleanCandidate(value: string) {
   return value.replace(/[「」『』【】\[\]()（）:：、。,.]/g, '').trim()
@@ -32,8 +52,9 @@ function isUsableName(value: string) {
   const name = cleanCandidate(value)
   if (name.length < 2 || name.length > 8) return false
   if (INTERNAL_NAMES.has(name)) return false
+  if (BAD_NAME_PHRASES.has(name)) return false
   if (!/^[一-龥ぁ-んァ-ンー]+$/.test(name)) return false
-  if (/(先生|さん|様|さま|くん|ちゃん|お世話|お願い|ありがとう|よろしく|確認|今日|明日|昨日|予定|中止|参加|連絡|到着|可能|体調|遠征|合宿)/.test(name)) return false
+  if (/(先生|さん|様|さま|くん|ちゃん|お世話|お願い|ありがとう|よろしく|確認|今日|明日|昨日|予定|中止|参加|連絡|到着|可能|体調|遠征|合宿|承知|了解|できました|わかりました|分かりました)/.test(name)) return false
   return true
 }
 
