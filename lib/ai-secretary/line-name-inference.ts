@@ -43,6 +43,7 @@ const BAD_NAME_PHRASES = new Set([
   'ありがとうございます',
   'ございます',
   'ここですね',
+  'ご報告まで',
 ])
 
 function cleanCandidate(value: string) {
@@ -55,7 +56,7 @@ function isUsableName(value: string) {
   if (INTERNAL_NAMES.has(name)) return false
   if (BAD_NAME_PHRASES.has(name)) return false
   if (!/^[一-龥ぁ-んァ-ンー]+$/.test(name)) return false
-  if (/(先生|さん|様|さま|くん|ちゃん|お世話|お願い|ありがとう|よろしく|確認|今日|明日|昨日|予定|中止|参加|連絡|到着|可能|体調|遠征|合宿|承知|了解|できました|わかりました|分かりました|ここ|ですね)/.test(name)) return false
+  if (/(先生|さん|様|さま|くん|ちゃん|お世話|お願い|ありがとう|よろしく|確認|今日|明日|昨日|予定|中止|参加|連絡|到着|可能|体調|遠征|合宿|承知|了解|報告|できました|わかりました|分かりました|ここ|ですね)/.test(name)) return false
   return true
 }
 
