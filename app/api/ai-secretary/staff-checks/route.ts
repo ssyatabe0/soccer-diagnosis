@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error?.message || 'line_inbox_not_found' }, { status: 404 })
   }
 
-  const target = resolveStaffTarget(item.service_category)
+  const target = resolveStaffTarget(item.service_category) || await resolveStaffTargetFromDb(supabase)
   if (!target) {
     return NextResponse.json({ error: 'staff_target_not_configured' }, { status: 400 })
   }
@@ -91,4 +91,30 @@ export async function POST(req: NextRequest) {
     target: { name: target.name, account_key: target.account_key },
     push: pushResult,
   }, { status: pushResult.ok ? 200 : 502 })
+}
+
+async function resolveStaffTargetFromDb(supabase: ReturnType<typeof createClient>) {
+  const { data: accounts } = await supabase
+    .from('staff_line_accounts')
+    .select('staff_id,line_account_key,line_user_id,display_name,created_at')
+    .order('created_at', { ascending: true })
+    .limit(10)
+
+  for (const account of accounts || []) {
+    const { data: staff } = await supabase
+      .from('staff_members')
+      .select('id,name,is_active,notify_enabled')
+      .eq('id', account.staff_id)
+      .maybeSingle()
+
+    if (staff?.is_active && staff?.notify_enabled) {
+      return {
+        name: staff.name || account.display_name || 'スタッフ',
+        account_key: account.line_account_key,
+        line_user_id: account.line_user_id,
+      }
+    }
+  }
+
+  return null
 }
