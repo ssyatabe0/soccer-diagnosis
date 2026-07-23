@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
-import { StaffCheckCopyButton } from '@/components/ai-secretary/StaffCheckActions'
+import { StaffCheckCopyButton, StaffNotifyButton } from '@/components/ai-secretary/StaffCheckActions'
 
 type SearchParams = Record<string, string | string[] | undefined>
 
@@ -246,7 +246,10 @@ export default async function StaffChecksPage({ searchParams }: { searchParams?:
                   <p className="whitespace-pre-wrap rounded-xl bg-gray-50 p-4 text-sm leading-7 text-gray-800">{item.ai_summary || item.body}</p>
                   <div className="flex items-center justify-between gap-3">
                     <h4 className="text-sm font-black text-gray-900">スタッフ確認文</h4>
-                    <StaffCheckCopyButton text={question} label="スタッフ確認文をコピー" />
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <StaffNotifyButton lineInboxId={item.id} token={token} />
+                      <StaffCheckCopyButton text={question} label="コピー" />
+                    </div>
                   </div>
                   <pre className="whitespace-pre-wrap rounded-xl border border-gray-200 bg-white p-4 text-sm leading-7 text-gray-900">{question}</pre>
                 </section>

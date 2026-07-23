@@ -53,6 +53,20 @@ create table if not exists staff_check_replies (
   created_at timestamptz not null default now()
 );
 
+alter table staff_check_tasks add column if not exists assigned_staff_name text;
+alter table staff_check_tasks add column if not exists staff_line_user_id text;
+alter table staff_check_tasks add column if not exists line_push_status integer;
+alter table staff_check_tasks add column if not exists line_push_ok boolean;
+alter table staff_check_tasks add column if not exists line_push_error text;
+alter table staff_check_tasks add column if not exists notified_at timestamptz;
+
+alter table staff_check_replies add column if not exists staff_name text;
+alter table staff_check_replies add column if not exists staff_line_user_id text;
+alter table staff_check_replies add column if not exists parsed_candidates text;
+alter table staff_check_replies add column if not exists parsed_place text;
+alter table staff_check_replies add column if not exists parsed_note text;
+alter table staff_check_replies add column if not exists ai_parent_reply_draft text;
+
 create index if not exists idx_staff_check_tasks_status_due
   on staff_check_tasks(status, due_at);
 
