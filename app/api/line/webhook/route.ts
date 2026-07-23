@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saveLineMessageForAiSecretary } from '@/lib/line-ai-secretary'
+import { handleStaffLineReply } from '@/lib/ai-secretary/staff-replies'
 
 const CTA = `
 さらに具体的な改善方法は
@@ -444,6 +445,18 @@ export async function POST(req: NextRequest) {
       const text = event.message.text || ''
       const replyToken = event.replyToken
       const lineChannelAccessToken = getLineChannelAccessToken(accountKey)
+      const lineUserId = event.source?.userId || ''
+
+      const staffReply = await handleStaffLineReply({
+        accountKey,
+        lineUserId,
+        text,
+        event,
+      })
+
+      if (staffReply.handled) {
+        continue
+      }
 
       const type = extractType(text)
       const replyText = type ? buildReply(type) : buildBasicInfoAutoReply(text)
