@@ -455,6 +455,23 @@ export async function POST(req: NextRequest) {
       })
 
       if (staffReply.handled) {
+        if (staffReply.replyText && replyToken && lineChannelAccessToken) {
+          try {
+            await fetch('https://api.line.me/v2/bot/message/reply', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${lineChannelAccessToken}`,
+              },
+              body: JSON.stringify({
+                replyToken,
+                messages: [{ type: 'text', text: staffReply.replyText }],
+              }),
+            })
+          } catch (staffReplyError) {
+            console.error('staff reply confirmation error:', staffReplyError)
+          }
+        }
         continue
       }
 
