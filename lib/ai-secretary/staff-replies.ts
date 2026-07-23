@@ -1,6 +1,14 @@
 import { createClient } from '@supabase/supabase-js'
 import { buildParentDraftFromStaffReply, isStaffLineUser, parseStaffReply } from './staff-checks'
 
+export type StaffLineReplyResult = {
+  handled: boolean
+  error?: string
+  taskId?: string
+  parentDraft?: string
+  replyText?: string
+}
+
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -13,7 +21,7 @@ export async function handleStaffLineReply(input: {
   lineUserId: string
   text: string
   event: unknown
-}) {
+}): Promise<StaffLineReplyResult> {
   if (process.env.STAFF_REPLY_INTAKE_ENABLED === 'false') return { handled: false }
 
   const supabase = getServiceClient()
