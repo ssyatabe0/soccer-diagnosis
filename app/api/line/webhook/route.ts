@@ -378,8 +378,23 @@ function missingBasicInfoFields(text: string) {
   return REQUIRED_INFO_FIELDS.filter((field) => !present[field.key]).map((field) => field.label)
 }
 
-function buildBasicInfoAutoReply(text: string) {
+function hasEnoughBasicInfo(text: string) {
+  const presentCount = [
+    hasParentName(text),
+    hasChildName(text),
+    hasGrade(text),
+    hasArea(text),
+    hasPhone(text),
+    hasDesiredTime(text),
+  ].filter(Boolean).length
+
+  return presentCount >= 3
+}
+
+function buildBasicInfoAutoReply(text: string, isExistingLineUser: boolean) {
+  if (isExistingLineUser) return ''
   if (!isBasicInfoAutoReplyCandidate(text)) return ''
+  if (hasEnoughBasicInfo(text)) return ''
 
   const missingFields = missingBasicInfoFields(text)
   if (missingFields.length === 0) return ''
@@ -432,6 +447,29 @@ function getLineChannelAccessToken(accountKey: string) {
   return process.env.LINE_CHANNEL_ACCESS_TOKEN || ''
 }
 
+async function hasPriorLineMessage(accountKey: string, lineUserId: string) {
+  if (!lineUserId) return false
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key || url.includes('placeholder')) return false
+
+  try {
+    const response = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/line_messages?account_key=eq.${encodeURIComponent(accountKey)}&line_user_id=eq.${encodeURIComponent(lineUserId)}&select=id&limit=1`, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+    })
+
+    if (!response.ok) return false
+    const rows = await response.json()
+    return Array.isArray(rows) && rows.length > 0
+  } catch {
+    return false
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -476,7 +514,8 @@ export async function POST(req: NextRequest) {
       }
 
       const type = extractType(text)
-      const replyText = type ? buildReply(type) : buildBasicInfoAutoReply(text)
+      const isExistingLineUser = await hasPriorLineMessage(accountKey, lineUserId)
+      const replyText = type ? buildReply(type) : buildBasicInfoAutoReply(text, isExistingLineUser)
 
       let lineReplyStatus: number | undefined
       let lineReplyOk: boolean | undefined
