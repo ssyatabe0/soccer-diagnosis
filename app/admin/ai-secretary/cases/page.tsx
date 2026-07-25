@@ -77,9 +77,14 @@ export default async function AiSecretaryCasesPage({ searchParams }: { searchPar
           <p className="mt-1 text-sm text-gray-500">悩み、原因、改善、結果を顧客と紐付けて保存します。公開はしません。</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/cases" className="rounded-full bg-lime-300 px-4 py-2 text-sm font-bold text-gray-950">公開症例DB β版</Link>
           <Link href={`/admin/ai-secretary/case-search?token=${encodeURIComponent(token)}`} className="rounded-full bg-gray-900 px-4 py-2 text-sm font-bold text-white">症例検索へ</Link>
           <Link href={`/admin/ai-secretary/videos?token=${encodeURIComponent(token)}`} className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700">動画DBへ</Link>
         </div>
+      </div>
+      <div className="rounded-2xl border border-lime-200 bg-lime-50 p-5 text-sm leading-7 text-lime-950">
+        <b>症例追加の入口</b>
+        <p className="mt-1">下の症例登録フォームでカルテを追加できます。公開サイトへ出す場合は、元動画・公開許可・改善時間を確認し、公開用データへ変換してください。未確認項目は空欄のままにします。</p>
       </div>
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">Supabase読み取りエラー: {error}</div>}
       <CaseRecordActions token={token} customers={customers} cases={cases} />

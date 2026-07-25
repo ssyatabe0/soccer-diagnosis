@@ -8,6 +8,19 @@ export default function Home() {
         <p className="text-xs tracking-wide">サッカー技術の病院 &times; 無料AI技術診断</p>
       </header>
 
+      <section className="w-full bg-gray-950 px-4 py-5 text-white">
+        <div className="mx-auto flex w-full max-w-lg items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-bold tracking-[0.16em] text-lime-300">CORE DATABASE / BETA</p>
+            <h2 className="mt-1 text-lg font-black">サッカーの悩みを、症例から探す。</h2>
+            <p className="mt-1 text-xs leading-5 text-gray-400">診断と各サービスの土台になる症例データベースを公開しました。</p>
+          </div>
+          <Link href="/cases" className="shrink-0 bg-lime-300 px-4 py-3 text-xs font-black text-gray-950">
+            症例を探す
+          </Link>
+        </div>
+      </section>
+
       {/* Hero */}
       <main className="flex flex-col items-center w-full max-w-lg mx-auto px-4 pt-8 pb-16">
         <div className="text-center mb-8">

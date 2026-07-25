@@ -8,6 +8,7 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://soccer-diagnosis.vercel.app'),
   title: 'サッカー才能の出し方診断 | サッカー家庭教師',
   description:
     '30秒の無料診断で、お子さんのサッカーの才能の"出し方"がわかる。技術不足ではなく、出し方を変えるだけで伸びる。',

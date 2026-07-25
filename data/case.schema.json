@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://soccer-diagnosis.vercel.app/schemas/case.schema.json",
+  "title": "Soccer clinical case",
+  "type": "object",
+  "required": [
+    "case_id",
+    "title",
+    "age",
+    "grade",
+    "position",
+    "symptom",
+    "complaint",
+    "diagnosis",
+    "treatment",
+    "before_video",
+    "after_video",
+    "improvement_time",
+    "result",
+    "reproducibility",
+    "comment",
+    "category",
+    "tags",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "case_id": { "type": "string" },
+    "slug": { "type": "string" },
+    "title": { "$ref": "#/$defs/localizedText" },
+    "age": { "type": ["string", "null"] },
+    "grade": { "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }] },
+    "position": { "type": ["string", "null"] },
+    "symptom": { "$ref": "#/$defs/localizedText" },
+    "complaint": { "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }] },
+    "diagnosis": { "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }] },
+    "treatment": { "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }] },
+    "before_video": { "type": ["string", "null"] },
+    "after_video": { "type": ["string", "null"] },
+    "comparison_video": { "type": ["string", "null"] },
+    "improvement_time": { "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }] },
+    "result": { "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }] },
+    "reproducibility": { "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }] },
+    "comment": { "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }] },
+    "category": { "type": "array", "items": { "type": "string" } },
+    "tags": { "$ref": "#/$defs/localizedText" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "future": {
+      "type": "object",
+      "properties": {
+        "player_id": { "type": ["string", "null"] },
+        "lesson_id": { "type": ["string", "null"] },
+        "improvement_events": { "type": "array" },
+        "cause_identification_seconds": { "type": ["number", "null"] },
+        "improvement_seconds": { "type": ["number", "null"] },
+        "success_rate": { "type": ["number", "null"] },
+        "session_tracking": { "type": "array" },
+        "overseas_case": { "type": "boolean" },
+        "ai_analysis": {}
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "localizedText": {
+      "type": "object",
+      "required": ["ja", "en"],
+      "properties": {
+        "ja": { "type": "string" },
+        "en": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": true
+}
