@@ -15,7 +15,7 @@ export default function Home() {
             <h2 className="mt-1 text-lg font-black">サッカーの悩みを、症例から探す。</h2>
             <p className="mt-1 text-xs leading-5 text-gray-400">診断と各サービスの土台になる症例データベースを公開しました。</p>
           </div>
-          <Link href="/cases" className="shrink-0 bg-lime-300 px-4 py-3 text-xs font-black text-gray-950">
+          <Link href="https://soccer-kateikyousi.com/cases/" className="shrink-0 bg-lime-300 px-4 py-3 text-xs font-black text-gray-950">
             症例を探す
           </Link>
         </div>
