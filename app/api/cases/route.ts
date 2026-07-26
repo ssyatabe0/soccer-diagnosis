@@ -12,6 +12,7 @@ export async function GET() {
   const cases = await getPublicCases()
   return NextResponse.json({
     schema_version: '1.0.0-beta',
+    schema_url: 'https://soccer-diagnosis.vercel.app/api/cases/schema',
     generated_at: new Date().toISOString(),
     count: cases.length,
     cases,

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://soccer-diagnosis.vercel.app/schemas/case.schema.json",
+  "$id": "https://soccer-diagnosis.vercel.app/api/cases/schema",
   "title": "Soccer clinical case",
   "type": "object",
   "required": [
