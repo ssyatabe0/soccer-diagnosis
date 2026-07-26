@@ -2,10 +2,10 @@ import Link from 'next/link'
 import type { Locale } from '@/data/cases'
 
 const serviceLinks = {
-  diagnosis: 'https://soccer-kateikyousi.com/soccer-diagnosis/',
+  database: 'https://soccer-kateikyousi.com/cases/',
+  diagnosis: 'https://soccer-kateikyousi.com/diagnosis/check/',
   online: 'https://soccer-kateikyousi.com/オンラインレッスン一覧/',
   lesson: 'https://soccer-kateikyousi.com/谷田部の料金/',
-  main: 'https://soccer-kateikyousi.com/',
 }
 
 export function CaseShell({ locale, children }: { locale: Locale; children: React.ReactNode }) {
@@ -20,12 +20,13 @@ export function CaseShell({ locale, children }: { locale: Locale; children: Reac
           <span className="case-brand-mark">Y</span>
           <span>
             <b>{isJa ? 'サッカー症例データベース' : 'Soccer Case Database'}</b>
-            <small>{isJa ? 'THE YATABE METHOD / BETA' : 'THE YATABE METHOD / BETA'}</small>
+            <small>THE YATABE METHOD</small>
           </span>
         </Link>
         <nav className="case-nav" aria-label={isJa ? 'メインナビゲーション' : 'Main navigation'}>
           <Link href={`${home}#search`}>{isJa ? '症状検索' : 'Search'}</Link>
           <Link href={`${home}#categories`}>{isJa ? 'カテゴリー' : 'Categories'}</Link>
+          <a href={serviceLinks.database}>{isJa ? '公式DB' : 'Official DB'}</a>
           <a href={serviceLinks.diagnosis}>{isJa ? '診断' : 'Diagnosis'}</a>
           <Link href={switchHref} className="case-lang">{isJa ? 'EN' : '日本語'}</Link>
         </nav>
@@ -45,7 +46,7 @@ export function CaseShell({ locale, children }: { locale: Locale; children: Reac
           <a href={serviceLinks.diagnosis}>{isJa ? '改善診断' : 'Soccer diagnosis'}</a>
           <a href={serviceLinks.online}>{isJa ? 'オンライン診断' : 'Online diagnosis'}</a>
           <a href={serviceLinks.lesson}>{isJa ? '対面・個人レッスン' : 'In-person private training'}</a>
-          <a href={serviceLinks.main}>{isJa ? '既存サイト' : 'Main website'}</a>
+          <a href={serviceLinks.database}>{isJa ? '公式症例DB' : 'Official case database'}</a>
         </div>
         <p className="case-subservice">
           {isJa

@@ -116,7 +116,7 @@ export function CaseRecordActions({ token, customers = [], cases = [], defaultCu
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h3 className="text-lg font-black text-gray-900">症例・動画を登録</h3>
-          <p className="mt-1 text-xs text-gray-500">公開や送信はしません。顧客に紐付く症例と動画素材をAI秘書へ保存します。</p>
+          <p className="mt-1 text-xs text-gray-500">「公開済み」を選んだ症例は公開症例DBへ自動反映されます。それ以外は管理画面内だけに保存します。</p>
         </div>
         {message && <p className="rounded-full bg-green-50 px-3 py-2 text-xs font-bold text-green-700">{message}</p>}
       </div>

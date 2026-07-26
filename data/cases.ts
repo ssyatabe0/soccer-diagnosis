@@ -494,8 +494,8 @@ export function getCaseBySlug(slug: string) {
   return soccerCases.find((item) => item.slug === slug)
 }
 
-export function getRelatedCases(item: SoccerCase, limit = 3) {
-  return soccerCases
+export function getRelatedCases(item: SoccerCase, candidates: SoccerCase[] = soccerCases, limit = 3) {
+  return candidates
     .filter((candidate) => candidate.case_id !== item.case_id)
     .map((candidate) => ({
       candidate,
