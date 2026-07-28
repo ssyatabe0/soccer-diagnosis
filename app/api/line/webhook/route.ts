@@ -28,7 +28,11 @@ function buildFacilityBookingReply(text: string) {
     normalized.includes('予約取れてる') ||
     normalized.includes('取れている予約') ||
     normalized.includes('現在の予約') ||
+    (/予約/.test(normalized) && /(教えて|見せて|出して|一覧|全部|取れ|入って|ある)/.test(normalized)) ||
     (normalized.includes('予約') && normalized.includes('全部') && normalized.includes('日'))
+  const requestsBooking =
+    normalized.startsWith('予約 ') ||
+    /(予約して|予約を取って|取って|押さえて)/.test(normalized)
 
   if (/^(ヘルプ|使い方|help)$/i.test(normalized)) {
     return [
@@ -62,8 +66,12 @@ function buildFacilityBookingReply(text: string) {
     return '港区・品川区の全アカウントを確認し、現在取れている予約を日付順で、一覧番号、日時、施設、料金、支払状況、取消期限つきでLINEに返します。予約がない日やアカウントは省きます。正式な予約番号はこちらで照合するので覚えていなくて大丈夫です。'
   }
 
-  if (normalized.startsWith('予約')) {
+  if (requestsBooking) {
     return '予約依頼を受け付けました。日時・施設・空き・料金上限・キャンセル条件を照合し、条件内の場合だけ「サッカー練習・3名」で予約します。'
+  }
+
+  if (normalized.includes('予約')) {
+    return '予約一覧を確認する場合は「予約状況」、新しく取る場合は「予約 8/5 8:00-10:00 芝浦中央 料金上限…」の形式で送ってください。予約番号は不要です。'
   }
 
   if (normalized.includes('空き')) {
