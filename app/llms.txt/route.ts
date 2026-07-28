@@ -18,6 +18,7 @@ export async function GET() {
 ## Primary URL
 
 - [公式症例データベース](https://soccer-kateikyousi.com/cases/)
+- [動画AI原因診断MVP](https://soccer-diagnosis.vercel.app/cause-diagnosis): 動画から観察事実を抽出し、原因候補・根拠・確認テスト・関連症例を返します。質問診断や声かけ生成とは別の機能です。
 - [English case database](https://soccer-diagnosis.vercel.app/en/cases)
 - [Full machine-readable case text](https://soccer-diagnosis.vercel.app/llms-full.txt)
 - [Case JSON API](https://soccer-diagnosis.vercel.app/api/cases)
@@ -31,6 +32,7 @@ export async function GET() {
 - 実在する公開記録・動画で確認できる内容だけを掲載します。
 - 元データで確認できない診断・処方・再現性は創作せず、未入力または非表示にします。
 - 医療診断ではなく、サッカー技術と動作の指導記録です。
+- AI原因診断の出力は未監修の仮説です。確定には確認テストまたは谷田部による確認が必要です。
 - 監修・指導者: 谷田部真之助。
 
 ## Symptom guides

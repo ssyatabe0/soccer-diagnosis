@@ -3,6 +3,7 @@ import type { Locale } from '@/data/cases'
 
 const serviceLinks = {
   database: 'https://soccer-kateikyousi.com/cases/',
+  causeDiagnosis: '/cause-diagnosis',
   diagnosis: 'https://soccer-kateikyousi.com/diagnosis/check/',
   online: 'https://soccer-kateikyousi.com/オンラインレッスン一覧/',
   lesson: 'https://soccer-kateikyousi.com/谷田部の料金/',
@@ -27,7 +28,7 @@ export function CaseShell({ locale, children }: { locale: Locale; children: Reac
           <Link href={`${home}#search`}>{isJa ? '症状検索' : 'Search'}</Link>
           <Link href={`${home}#categories`}>{isJa ? 'カテゴリー' : 'Categories'}</Link>
           <a href={serviceLinks.database}>{isJa ? '公式DB' : 'Official DB'}</a>
-          <a href={serviceLinks.diagnosis}>{isJa ? '診断' : 'Diagnosis'}</a>
+          <Link href={serviceLinks.causeDiagnosis}>{isJa ? 'AI原因診断' : 'AI Cause Diagnosis'}</Link>
           <Link href={switchHref} className="case-lang">{isJa ? 'EN' : '日本語'}</Link>
         </nav>
       </header>
@@ -43,6 +44,7 @@ export function CaseShell({ locale, children }: { locale: Locale; children: Reac
           </p>
         </div>
         <div className="case-footer-links">
+          <Link href={serviceLinks.causeDiagnosis}>{isJa ? '動画AI原因診断' : 'AI cause diagnosis'}</Link>
           <a href={serviceLinks.diagnosis}>{isJa ? '改善診断' : 'Soccer diagnosis'}</a>
           <a href={serviceLinks.online}>{isJa ? 'オンライン診断' : 'Online diagnosis'}</a>
           <a href={serviceLinks.lesson}>{isJa ? '対面・個人レッスン' : 'In-person private training'}</a>
@@ -70,15 +72,15 @@ export function DiagnosisPath({ locale }: { locale: Locale }) {
           : 'Compare cases first, then choose only the level of support you need. Current services and fees remain on the main website.'}
       </p>
       <div className="case-next-grid">
-        <a href={serviceLinks.online}>
+        <Link href={serviceLinks.causeDiagnosis}>
           <small>01</small>
-          <b>{isJa ? 'オンライン診断' : 'Online diagnosis'}</b>
-          <span>{isJa ? '動画から現在地を確認' : 'Review the current problem from video'}</span>
-        </a>
-        <a href={serviceLinks.diagnosis}>
+          <b>{isJa ? '動画AI原因診断' : 'AI cause diagnosis'}</b>
+          <span>{isJa ? '観察事実と原因候補を出す' : 'Generate observations and cause hypotheses'}</span>
+        </Link>
+        <a href={serviceLinks.online}>
           <small>02</small>
-          <b>{isJa ? '対面診断' : 'In-person diagnosis'}</b>
-          <span>{isJa ? 'その場で原因と変化を確認' : 'Identify the cause and test a change in person'}</span>
+          <b>{isJa ? '動画・オンライン診断' : 'Video diagnosis'}</b>
+          <span>{isJa ? '谷田部が原因を確認' : 'Have Yatabe review the cause'}</span>
         </a>
         <a href={serviceLinks.lesson}>
           <small>03</small>
