@@ -325,7 +325,17 @@ export async function POST(request: NextRequest) {
   )
   const responseBody = await response.json() as Record<string, unknown>
   if (!response.ok) {
-    console.error('[cause-diagnosis] OpenAI error', response.status, responseBody)
+    console.error('[cause-diagnosis] AI provider error', response.status, responseBody)
+    const providerError = responseBody.error
+    const providerErrorType = providerError && typeof providerError === 'object'
+      ? (providerError as { type?: unknown }).type
+      : null
+    if (providerErrorType === 'customer_verification_required') {
+      return NextResponse.json(
+        { error: 'ai_billing_required', message: 'AI接続の利用準備中です。公開テスト開始までお待ちください。' },
+        { status: 503 },
+      )
+    }
     return NextResponse.json(
       { error: 'analysis_failed', message: 'AI分析を完了できませんでした。時間をおいて再度お試しください。' },
       { status: 502 },
