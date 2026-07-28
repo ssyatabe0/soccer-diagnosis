@@ -18,6 +18,52 @@ https://soccer-kateikyousi.com/
 
 const LINE_AUTO_REPLY_ENABLED = process.env.LINE_AUTO_REPLY_ENABLED === 'true'
 const LINE_BASIC_INFO_AUTO_REPLY_ENABLED = process.env.LINE_BASIC_INFO_AUTO_REPLY_ENABLED !== 'false'
+const FACILITY_BOOKING_ACCOUNT_KEY = 'facility_booking'
+
+function buildFacilityBookingReply(text: string) {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+
+  if (/^(ヘルプ|使い方|help)$/i.test(normalized)) {
+    return [
+      '施設予約アシスタントです。',
+      '',
+      '・空き状況',
+      '・予約状況',
+      '・キャンセル規約 芝浦中央',
+      '・予約 8/5 8:00-10:00 芝浦中央 1400円まで',
+      '・キャンセル確認 予約番号123456',
+      '・確定キャンセル 予約番号123456',
+      '',
+      '予約名義は「サッカー練習」、人数は3名で扱います。',
+    ].join('\n')
+  }
+
+  if (normalized.includes('確定キャンセル')) {
+    return '確定キャンセルを受け付けました。予約番号、対象日時、現在の取消ペナルティを照合してから実行し、結果をLINEで返します。'
+  }
+
+  if (normalized.includes('キャンセル確認')) {
+    return 'キャンセル条件を確認します。この段階では取消しません。料金・予約制限を返信した後、「確定キャンセル 予約番号…」でのみ実行します。'
+  }
+
+  if (normalized.includes('キャンセル規約') || normalized.includes('取消規約')) {
+    return '指定施設の最新キャンセル規約を確認します。金銭負担と新規予約制限を分けてLINEで返します。'
+  }
+
+  if (normalized.includes('予約状況')) {
+    return '港区・品川区の現在の予約状況を確認し、日時・施設・料金・支払状況をLINEで返します。'
+  }
+
+  if (normalized.startsWith('予約')) {
+    return '予約依頼を受け付けました。日時・施設・空き・料金上限・キャンセル条件を照合し、条件内の場合だけ「サッカー練習・3名」で予約します。'
+  }
+
+  if (normalized.includes('空き')) {
+    return '港区・品川区の空き状況を確認します。近場・安い施設と7時台（芝浦中央は8時台）を優先してLINEで返します。'
+  }
+
+  return '「空き状況」「予約状況」「キャンセル規約」「予約 …」「キャンセル確認 …」のいずれかを送ってください。「使い方」で書式を確認できます。'
+}
 
 const REQUIRED_INFO_FIELDS = [
   { key: 'parent_name', label: '保護者様のお名前' },
@@ -484,6 +530,47 @@ export async function POST(req: NextRequest) {
       const replyToken = event.replyToken
       const lineChannelAccessToken = getLineChannelAccessToken(accountKey)
       const lineUserId = event.source?.userId || ''
+
+      if (accountKey === FACILITY_BOOKING_ACCOUNT_KEY) {
+        const allowedUserId = process.env.FACILITY_BOOKING_LINE_USER_ID || ''
+        if (!allowedUserId || lineUserId !== allowedUserId) continue
+
+        const facilityReplyText = buildFacilityBookingReply(text)
+        let facilityReplyStatus: number | undefined
+        let facilityReplyOk: boolean | undefined
+
+        if (facilityReplyText && replyToken && lineChannelAccessToken) {
+          try {
+            const response = await fetch('https://api.line.me/v2/bot/message/reply', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${lineChannelAccessToken}`,
+              },
+              body: JSON.stringify({
+                replyToken,
+                messages: [{ type: 'text', text: facilityReplyText }],
+              }),
+            })
+            facilityReplyStatus = response.status
+            facilityReplyOk = response.ok
+          } catch (facilityReplyError) {
+            console.error('facility booking reply error:', facilityReplyError)
+            facilityReplyOk = false
+          }
+        }
+
+        await saveLineMessageForAiSecretary({
+          event,
+          text,
+          extractedType: null,
+          autoReplyText: facilityReplyText,
+          accountKey,
+          lineReplyStatus: facilityReplyStatus,
+          lineReplyOk: facilityReplyOk,
+        })
+        continue
+      }
 
       const staffReply = await handleStaffLineReply({
         accountKey,
