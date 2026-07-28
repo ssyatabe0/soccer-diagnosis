@@ -1,4 +1,4 @@
-import { soccerCases } from '@/data/cases'
+import { getPublicCases } from '@/lib/cases/public-cases'
 
 function xml(value: string) {
   return value
@@ -10,7 +10,8 @@ function xml(value: string) {
 }
 
 export async function GET() {
-  const rows = soccerCases
+  const publicCases = await getPublicCases()
+  const rows = publicCases
     .filter((item) => item.comparison_video)
     .map((item) => {
       const id = item.comparison_video as string

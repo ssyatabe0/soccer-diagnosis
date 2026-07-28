@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:video-cases": "node scripts/sync-video-analysis-cases.mjs"
   },
   "dependencies": {
     "@line/liff": "^2.27.3",

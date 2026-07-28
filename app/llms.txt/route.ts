@@ -1,11 +1,12 @@
 import { caseTopics } from '@/data/case-topics'
-import { soccerCases } from '@/data/cases'
+import { getPublicCases } from '@/lib/cases/public-cases'
 
 export async function GET() {
+  const publicCases = await getPublicCases()
   const topics = caseTopics
     .map((topic) => `- [${topic.shortTitle}](https://soccer-diagnosis.vercel.app/cases/topics/${topic.slug}): ${topic.description}`)
     .join('\n')
-  const cases = soccerCases
+  const cases = publicCases
     .map((item) => `- [${item.title.ja}](https://soccer-diagnosis.vercel.app/cases/${item.slug}): ${item.symptom.ja}`)
     .join('\n')
 

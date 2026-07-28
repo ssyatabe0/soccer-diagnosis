@@ -1,4 +1,4 @@
-import { soccerCases } from '@/data/cases'
+import { getPublicCases } from '@/lib/cases/public-cases'
 
 function xml(value: string) {
   return value
@@ -10,7 +10,8 @@ function xml(value: string) {
 }
 
 export async function GET() {
-  const items = soccerCases
+  const publicCases = await getPublicCases()
+  const items = publicCases
     .slice()
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
     .map((item) => `<item>

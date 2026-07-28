@@ -1,11 +1,13 @@
-import { categoryLabels, soccerCases } from '@/data/cases'
+import { categoryLabels } from '@/data/cases'
+import { getPublicCases } from '@/lib/cases/public-cases'
 
 function field(label: string, value?: string | null) {
   return value ? `${label}: ${value}` : null
 }
 
 export async function GET() {
-  const records = soccerCases.map((item) => [
+  const publicCases = await getPublicCases()
+  const records = publicCases.map((item) => [
     `## ${item.case_id}: ${item.title.ja}`,
     `URL: https://soccer-diagnosis.vercel.app/cases/${item.slug}`,
     field('年齢・学年', item.grade?.ja || (item.age ? `${item.age}歳` : null)),

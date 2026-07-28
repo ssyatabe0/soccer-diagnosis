@@ -6,6 +6,7 @@ import {
   type CaseCategory,
   type SoccerCase,
 } from '@/data/cases'
+import videoAnalysisImports from '@/data/generated/video-analysis-imports.json'
 
 type PublishedCaseRow = {
   case_code: string | null
@@ -20,6 +21,24 @@ type PublishedCaseRow = {
   tags: string[] | null
   youtube_urls: string[] | null
   created_at: string
+  updated_at: string
+}
+
+type VideoAnalysisImport = {
+  case_code: string
+  source_id: string
+  title: string | null
+  age: number | null
+  grade: string | null
+  position: string | null
+  problem: string | null
+  cause: string | null
+  improvement: string | null
+  result: string | null
+  publish_status: string
+  tags: string[]
+  youtube_url: string | null
+  lesson_date: string | null
   updated_at: string
 }
 
@@ -99,9 +118,34 @@ function rowToCase(row: PublishedCaseRow, rank: number): SoccerCase | null {
   }
 }
 
+function importedRowToCase(row: VideoAnalysisImport, rank: number): SoccerCase | null {
+  if (row.publish_status !== 'published' || !row.problem) return null
+  const item = rowToCase({
+    case_code: row.case_code,
+    age: row.age,
+    grade: row.grade,
+    position: row.position,
+    problem: row.problem,
+    cause: row.cause,
+    improvement: row.improvement,
+    result: row.result,
+    publish_status: row.publish_status,
+    tags: row.tags,
+    youtube_urls: row.youtube_url ? [row.youtube_url] : [],
+    created_at: row.lesson_date || row.updated_at,
+    updated_at: row.updated_at,
+  }, rank)
+  if (!item || !row.title) return item
+  return { ...item, title: { ...item.title, ja: row.title } }
+}
+
 export async function getPublicCases(): Promise<SoccerCase[]> {
+  const generatedCases = (videoAnalysisImports.records as VideoAnalysisImport[])
+    .map((row, index) => importedRowToCase(row, soccerCases.length + index + 1))
+    .filter((item): item is SoccerCase => Boolean(item))
+  const baseCases = [...soccerCases, ...generatedCases]
   const supabase = getServiceClient()
-  if (!supabase) return soccerCases
+  if (!supabase) return baseCases
 
   const { data, error } = await supabase
     .from('ai_secretary_case_assets')
@@ -110,15 +154,15 @@ export async function getPublicCases(): Promise<SoccerCase[]> {
     .order('updated_at', { ascending: false })
     .limit(1000)
 
-  if (error || !data) return soccerCases
+  if (error || !data) return baseCases
 
-  const staticIds = new Set(soccerCases.map((item) => item.case_id))
+  const staticIds = new Set(baseCases.map((item) => item.case_id))
   const databaseCases = (data as PublishedCaseRow[])
-    .map((row, index) => rowToCase(row, soccerCases.length + index + 1))
+    .map((row, index) => rowToCase(row, baseCases.length + index + 1))
     .filter((item): item is SoccerCase => Boolean(item))
     .filter((item) => !staticIds.has(item.case_id))
 
-  return [...soccerCases, ...databaseCases]
+  return [...baseCases, ...databaseCases]
 }
 
 export async function getPublicCase(slug: string) {
@@ -128,4 +172,3 @@ export async function getPublicCase(slug: string) {
     item: cases.find((entry) => entry.slug === slug),
   }
 }
-

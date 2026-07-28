@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CaseSeoLanding } from '@/components/cases/CaseSeoLanding'
-import { categoryLabels, soccerCases, type CaseCategory } from '@/data/cases'
+import { categoryLabels, type CaseCategory } from '@/data/cases'
+import { getPublicCases } from '@/lib/cases/public-cases'
 
 type Props = { params: Promise<{ category: string }> }
 const baseUrl = 'https://soccer-diagnosis.vercel.app'
-const categories = (Object.keys(categoryLabels) as CaseCategory[])
-  .filter((category) => soccerCases.some((item) => item.category.includes(category)))
+const categories = Object.keys(categoryLabels) as CaseCategory[]
 
 function asCategory(value: string): CaseCategory | null {
   return categories.includes(value as CaseCategory) ? value as CaseCategory : null
@@ -41,7 +41,8 @@ export default async function CaseCategoryPage({ params }: Props) {
   const category = asCategory(rawCategory)
   if (!category) notFound()
   const label = categoryLabels[category].ja
-  const cases = soccerCases.filter((item) => item.category.includes(category))
+  const publicCases = await getPublicCases()
+  const cases = publicCases.filter((item) => item.category.includes(category))
   const title = `サッカーの${label}に関する改善症例`
   const description = `${label}の悩みを、実際のレッスンで起きた症状・原因・介入・変化の記録から探せます。`
   const canonical = `${baseUrl}/cases/category/${category}`

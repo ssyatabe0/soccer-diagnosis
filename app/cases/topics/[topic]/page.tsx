@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CaseSeoLanding } from '@/components/cases/CaseSeoLanding'
 import { caseTopics, getCaseTopic } from '@/data/case-topics'
-import { soccerCases } from '@/data/cases'
+import { type SoccerCase } from '@/data/cases'
+import { getPublicCases } from '@/lib/cases/public-cases'
 
 type Props = { params: Promise<{ topic: string }> }
 const baseUrl = 'https://soccer-diagnosis.vercel.app'
@@ -35,9 +36,22 @@ export default async function CaseTopicPage({ params }: Props) {
   const { topic: slug } = await params
   const topic = getCaseTopic(slug)
   if (!topic) notFound()
-  const cases = topic.caseSlugs
-    .map((caseSlug) => soccerCases.find((item) => item.slug === caseSlug))
-    .filter((item): item is (typeof soccerCases)[number] => Boolean(item))
+  const publicCases = await getPublicCases()
+  const stopWords = new Set(['サッカー', 'できない', '苦手', '改善', '試合'])
+  const queryTerms = topic.queries
+    .flatMap((query) => query.toLowerCase().split(/\s+/))
+    .filter((term) => term.length >= 2 && !stopWords.has(term))
+  const cases = publicCases.filter((item) => {
+    if (topic.caseSlugs.includes(item.slug)) return true
+    const haystack = [
+      item.title.ja,
+      item.symptom.ja,
+      item.diagnosis?.ja,
+      item.treatment?.ja,
+      item.tags.ja,
+    ].filter(Boolean).join(' ').toLowerCase()
+    return queryTerms.some((term) => haystack.includes(term))
+  }).filter((item): item is SoccerCase => Boolean(item))
   const canonical = `${baseUrl}/cases/topics/${topic.slug}`
   const jsonLd = {
     '@context': 'https://schema.org',
