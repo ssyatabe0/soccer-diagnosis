@@ -1,4 +1,5 @@
 import { getPublicCases } from '@/lib/cases/public-cases'
+import { getCanonicalCaseUrl } from '@/data/cases'
 
 function xml(value: string) {
   return value
@@ -16,8 +17,8 @@ export async function GET() {
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
     .map((item) => `<item>
   <title>${xml(item.title.ja)}</title>
-  <link>https://soccer-diagnosis.vercel.app/cases/${xml(item.slug)}</link>
-  <guid isPermaLink="true">https://soccer-diagnosis.vercel.app/cases/${xml(item.slug)}</guid>
+  <link>${xml(getCanonicalCaseUrl(item))}</link>
+  <guid isPermaLink="true">${xml(getCanonicalCaseUrl(item))}</guid>
   <pubDate>${new Date(item.updated_at).toUTCString()}</pubDate>
   <description>${xml(item.symptom.ja)}</description>
 </item>`)

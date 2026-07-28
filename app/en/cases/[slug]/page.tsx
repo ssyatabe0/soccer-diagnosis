@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CaseDetail } from '@/components/cases/CaseDetail'
-import { getCaseBySlug, getRelatedCases, soccerCases } from '@/data/cases'
+import { getCanonicalCaseUrl, getCaseBySlug, getRelatedCases, soccerCases } from '@/data/cases'
 
 type Props = { params: Promise<{ slug: string }> }
 
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical,
       languages: {
-        ja: `https://soccer-diagnosis.vercel.app/cases/${item.slug}`,
+        ja: getCanonicalCaseUrl(item),
         en: canonical,
       },
     },

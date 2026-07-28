@@ -1,4 +1,5 @@
 import { getPublicCases } from '@/lib/cases/public-cases'
+import { getCanonicalCaseUrl } from '@/data/cases'
 
 function xml(value: string) {
   return value
@@ -15,7 +16,7 @@ export async function GET() {
     .filter((item) => item.comparison_video)
     .map((item) => {
       const id = item.comparison_video as string
-      const pageUrl = `https://soccer-diagnosis.vercel.app/cases/${item.slug}`
+      const pageUrl = getCanonicalCaseUrl(item)
       const description = [item.symptom.ja, item.result?.ja].filter(Boolean).join('。')
       return `<url>
   <loc>${xml(pageUrl)}</loc>

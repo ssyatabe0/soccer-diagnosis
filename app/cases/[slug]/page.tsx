@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CaseDetail } from '@/components/cases/CaseDetail'
-import { categoryLabels, getRelatedCases, soccerCases } from '@/data/cases'
+import { categoryLabels, getCanonicalCaseUrl, getRelatedCases, soccerCases } from '@/data/cases'
 import { getPublicCase } from '@/lib/cases/public-cases'
 
 type Props = { params: Promise<{ slug: string }> }
@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const { item } = await getPublicCase(slug)
   if (!item) return {}
-  const canonical = `https://soccer-diagnosis.vercel.app/cases/${item.slug}`
+  const canonical = getCanonicalCaseUrl(item)
   const grade = item.grade?.ja || (item.age ? `${item.age}歳` : '年齢未入力')
   const summary = [item.symptom.ja, item.result?.ja, item.improvement_time?.ja ? `改善まで${item.improvement_time.ja}` : null]
     .filter(Boolean)
@@ -57,7 +57,7 @@ export default async function CasePage({ params }: Props) {
   const { item, cases } = await getPublicCase(slug)
   if (!item) notFound()
   const index = cases.findIndex((entry) => entry.case_id === item.case_id)
-  const canonical = `https://soccer-diagnosis.vercel.app/cases/${item.slug}`
+  const canonical = getCanonicalCaseUrl(item)
   const image = item.comparison_video
     ? `https://i.ytimg.com/vi/${item.comparison_video}/hqdefault.jpg`
     : 'https://soccer-diagnosis.vercel.app/cases/og.png'

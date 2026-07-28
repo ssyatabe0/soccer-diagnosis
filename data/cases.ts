@@ -5,6 +5,25 @@ export type LocalizedText = {
   en: string
 }
 
+export type CauseHypothesis = {
+  rank: number
+  cause: LocalizedText
+  evidence: LocalizedText[]
+  confidence: number | null
+  disconfirming_test: LocalizedText | null
+  related_case_ids: string[]
+}
+
+export type CauseDiagnosisAnalysis = {
+  input_type: 'video' | 'structured_observation' | 'lesson_record'
+  symptom_observations: LocalizedText[]
+  cause_hypotheses: CauseHypothesis[]
+  prescribed_test: LocalizedText | null
+  source_frame_refs: string[]
+  reviewed_by_coach: boolean
+  analyzed_at: string
+}
+
 export type CaseCategory =
   | 'shooting'
   | 'first-touch'
@@ -55,7 +74,7 @@ export type SoccerCase = {
     success_rate: number | null
     session_tracking: unknown[]
     overseas_case: boolean
-    ai_analysis: unknown | null
+    ai_analysis: CauseDiagnosisAnalysis | null
   }
 }
 
@@ -144,7 +163,7 @@ export const soccerCases: SoccerCase[] = [
     },
     created_at: '2026-07-14T00:00:00+09:00',
     updated_at: '2026-07-25T00:00:00+09:00',
-    source_url: 'https://www.youtube.com/watch?v=6hKZZPeIyD8',
+    source_url: 'https://soccer-kateikyousi.com/video-proof-6hkzzpeiyd8/',
     source_status: 'verified-video',
     featured_rank: 1,
     future: blankFuture(),
@@ -283,7 +302,7 @@ export const soccerCases: SoccerCase[] = [
     grade: null,
     position: null,
     symptom: { ja: '浮き玉の処理が苦手', en: 'The player struggles to control aerial balls.' },
-    comparison_video: '_z4_u3ltgUY',
+    comparison_video: 'xADMCcVpxCs',
     improvement_time: { ja: '5分', en: '5 minutes' },
     category: ['first-touch', 'body-movement'],
     tags: { ja: '浮き玉 トラップ ファーストタッチ 身体の使い方', en: 'aerial ball first touch control body movement' },
@@ -488,7 +507,71 @@ export const soccerCases: SoccerCase[] = [
     featured_rank: 18,
     future: blankFuture(true),
   },
+  proofCase({
+    case_id: 'CASE-0019',
+    slug: 'adult-long-kick-height',
+    title: {
+      ja: '50代男性・ロングキックの高さが出ない',
+      en: 'Adult Player Struggling to Add Height to a Long Kick',
+    },
+    age: null,
+    grade: { ja: '50代男性', en: 'Male player in his 50s' },
+    position: null,
+    symptom: {
+      ja: 'ロングキックの高さが出にくい',
+      en: 'The player struggles to generate height on long kicks.',
+    },
+    comparison_video: 'T4NGWiAb9RM',
+    improvement_time: { ja: '1分', en: '1 minute' },
+    category: ['long-ball', 'body-movement'],
+    tags: {
+      ja: '50代 社会人 ロングキック 高さ キック 身体の使い方',
+      en: 'adult player 50s long kick height kicking body movement',
+    },
+    created_at: '2026-07-29T00:00:00+09:00',
+    updated_at: '2026-07-29T00:00:00+09:00',
+    source_url: 'https://soccer-kateikyousi.com/video-proof-t4ngwiab9rm/',
+    source_status: 'public-source',
+    featured_rank: 19,
+  }),
+  proofCase({
+    case_id: 'CASE-0020',
+    slug: 'first-touch-to-dribble-loses-ball',
+    title: {
+      ja: 'トラップからドリブルへ入る時に奪われる',
+      en: 'Losing the Ball when Moving from First Touch into a Dribble',
+    },
+    age: null,
+    grade: null,
+    position: null,
+    symptom: {
+      ja: 'トラップからドリブルへ入る時にボールを奪われる',
+      en: 'The player loses the ball while transitioning from the first touch into a dribble.',
+    },
+    comparison_video: 'x8HqOHOF3C0',
+    improvement_time: { ja: '3分', en: '3 minutes' },
+    category: ['first-touch', 'dribbling', 'one-v-one'],
+    tags: {
+      ja: 'トラップ ファーストタッチ ドリブル 奪われる 1対1 ボール操作',
+      en: 'first touch dribbling loses ball 1v1 ball control',
+    },
+    created_at: '2026-07-29T00:00:00+09:00',
+    updated_at: '2026-07-29T00:00:00+09:00',
+    source_url: 'https://soccer-kateikyousi.com/video-proof-x8hqohof3c0/',
+    source_status: 'public-source',
+    featured_rank: 20,
+  }),
 ]
+
+export function getCanonicalCaseUrl(item: SoccerCase) {
+  try {
+    const source = new URL(item.source_url)
+    if (source.hostname === 'soccer-kateikyousi.com' && source.pathname !== '/cases/') {
+      return source.toString()
+    }
+  } catch {}
+  return `https://soccer-diagnosis.vercel.app/cases/${item.slug}`
+}
 
 export function getCaseBySlug(slug: string) {
   return soccerCases.find((item) => item.slug === slug)

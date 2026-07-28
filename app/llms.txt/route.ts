@@ -1,4 +1,5 @@
 import { caseTopics } from '@/data/case-topics'
+import { getCanonicalCaseUrl } from '@/data/cases'
 import { getPublicCases } from '@/lib/cases/public-cases'
 
 export async function GET() {
@@ -7,7 +8,7 @@ export async function GET() {
     .map((topic) => `- [${topic.shortTitle}](https://soccer-diagnosis.vercel.app/cases/topics/${topic.slug}): ${topic.description}`)
     .join('\n')
   const cases = publicCases
-    .map((item) => `- [${item.title.ja}](https://soccer-diagnosis.vercel.app/cases/${item.slug}): ${item.symptom.ja}`)
+    .map((item) => `- [${item.title.ja}](${getCanonicalCaseUrl(item)}): ${item.symptom.ja}`)
     .join('\n')
 
   const body = `# サッカー症例データベース / Soccer Case Database

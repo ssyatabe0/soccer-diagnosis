@@ -1,4 +1,4 @@
-import { categoryLabels } from '@/data/cases'
+import { categoryLabels, getCanonicalCaseUrl } from '@/data/cases'
 import { getPublicCases } from '@/lib/cases/public-cases'
 
 function field(label: string, value?: string | null) {
@@ -9,7 +9,7 @@ export async function GET() {
   const publicCases = await getPublicCases()
   const records = publicCases.map((item) => [
     `## ${item.case_id}: ${item.title.ja}`,
-    `URL: https://soccer-diagnosis.vercel.app/cases/${item.slug}`,
+    `URL: ${getCanonicalCaseUrl(item)}`,
     field('年齢・学年', item.grade?.ja || (item.age ? `${item.age}歳` : null)),
     field('ポジション', item.position),
     field('症状', item.symptom.ja),

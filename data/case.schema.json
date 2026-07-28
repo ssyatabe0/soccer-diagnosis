@@ -57,7 +57,12 @@
         "success_rate": { "type": ["number", "null"] },
         "session_tracking": { "type": "array" },
         "overseas_case": { "type": "boolean" },
-        "ai_analysis": {}
+        "ai_analysis": {
+          "oneOf": [
+            { "$ref": "#/$defs/causeDiagnosisAnalysis" },
+            { "type": "null" }
+          ]
+        }
       },
       "additionalProperties": true
     }
@@ -69,6 +74,63 @@
       "properties": {
         "ja": { "type": "string" },
         "en": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "causeHypothesis": {
+      "type": "object",
+      "required": ["rank", "cause", "evidence", "confidence", "disconfirming_test", "related_case_ids"],
+      "properties": {
+        "rank": { "type": "integer", "minimum": 1 },
+        "cause": { "$ref": "#/$defs/localizedText" },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/localizedText" }
+        },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "disconfirming_test": {
+          "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }]
+        },
+        "related_case_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "causeDiagnosisAnalysis": {
+      "type": "object",
+      "required": [
+        "input_type",
+        "symptom_observations",
+        "cause_hypotheses",
+        "prescribed_test",
+        "source_frame_refs",
+        "reviewed_by_coach",
+        "analyzed_at"
+      ],
+      "properties": {
+        "input_type": {
+          "type": "string",
+          "enum": ["video", "structured_observation", "lesson_record"]
+        },
+        "symptom_observations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/localizedText" }
+        },
+        "cause_hypotheses": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/causeHypothesis" }
+        },
+        "prescribed_test": {
+          "oneOf": [{ "$ref": "#/$defs/localizedText" }, { "type": "null" }]
+        },
+        "source_frame_refs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "reviewed_by_coach": { "type": "boolean" },
+        "analyzed_at": { "type": "string", "format": "date-time" }
       },
       "additionalProperties": false
     }

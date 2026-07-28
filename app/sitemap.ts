@@ -1,5 +1,5 @@
 import type { MetadataRoute } from 'next'
-import { categoryLabels, type CaseCategory } from '@/data/cases'
+import { categoryLabels, getCanonicalCaseUrl, type CaseCategory } from '@/data/cases'
 import { caseTopics } from '@/data/case-topics'
 import { getPublicCases } from '@/lib/cases/public-cases'
 
@@ -26,16 +26,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'weekly' as const,
         priority: 0.7,
       })),
-    ...publicCases.flatMap((item) => [{
-        url: `${baseUrl}/cases/${item.slug}`,
-        lastModified: new Date(item.updated_at),
-        changeFrequency: 'monthly' as const,
-        priority: 0.8,
-      }, {
+    ...publicCases.flatMap((item) => {
+      const canonical = getCanonicalCaseUrl(item)
+      const japaneseEntry = canonical.startsWith(baseUrl)
+        ? [{
+            url: canonical,
+            lastModified: new Date(item.updated_at),
+            changeFrequency: 'monthly' as const,
+            priority: 0.8,
+          }]
+        : []
+
+      return [...japaneseEntry, {
         url: `${baseUrl}/en/cases/${item.slug}`,
         lastModified: new Date(item.updated_at),
         changeFrequency: 'monthly' as const,
         priority: 0.6,
-      }]),
+      }]
+    }),
   ]
 }
