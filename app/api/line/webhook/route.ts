@@ -22,6 +22,13 @@ const FACILITY_BOOKING_ACCOUNT_KEY = 'facility_booking'
 
 function buildFacilityBookingReply(text: string) {
   const normalized = text.replace(/\s+/g, ' ').trim()
+  const requestsReservationList =
+    normalized.includes('予約状況') ||
+    normalized.includes('予約一覧') ||
+    normalized.includes('予約取れてる') ||
+    normalized.includes('取れている予約') ||
+    normalized.includes('現在の予約') ||
+    (normalized.includes('予約') && normalized.includes('全部') && normalized.includes('日'))
 
   if (/^(ヘルプ|使い方|help)$/i.test(normalized)) {
     return [
@@ -51,8 +58,8 @@ function buildFacilityBookingReply(text: string) {
     return '指定施設の最新キャンセル規約を確認します。金銭負担と新規予約制限を分けてLINEで返します。'
   }
 
-  if (normalized.includes('予約状況')) {
-    return '港区・品川区の全アカウントを確認し、現在の予約を一覧番号、日時、施設、料金、支払状況、取消期限つきでLINEに返します。正式な予約番号はこちらで照合するので覚えていなくて大丈夫です。'
+  if (requestsReservationList) {
+    return '港区・品川区の全アカウントを確認し、現在取れている予約を日付順で、一覧番号、日時、施設、料金、支払状況、取消期限つきでLINEに返します。予約がない日やアカウントは省きます。正式な予約番号はこちらで照合するので覚えていなくて大丈夫です。'
   }
 
   if (normalized.startsWith('予約')) {
