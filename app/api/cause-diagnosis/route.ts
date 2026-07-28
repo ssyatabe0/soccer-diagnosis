@@ -210,7 +210,9 @@ function normalizeHypotheses(value: unknown, observationIds: Set<string>): Cause
 }
 
 export async function POST(request: NextRequest) {
-  const gatewayToken = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN
+  const gatewayToken = process.env.AI_GATEWAY_API_KEY
+    || process.env.VERCEL_OIDC_TOKEN
+    || request.headers.get('x-vercel-oidc-token')
   const directOpenAiKey = process.env.OPENAI_API_KEY
   if (!gatewayToken && !directOpenAiKey) {
     return NextResponse.json(
