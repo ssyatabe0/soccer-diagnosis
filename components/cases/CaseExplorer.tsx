@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { caseTopics } from '@/data/case-topics'
 import {
   categoryLabels,
   type CaseCategory,
@@ -57,7 +58,7 @@ function searchableText(item: SoccerCase, locale: Locale) {
   ].filter(Boolean).join(' '))
 }
 
-function CaseCard({ item, locale, priority = false }: { item: SoccerCase; locale: Locale; priority?: boolean }) {
+export function CaseCard({ item, locale, priority = false }: { item: SoccerCase; locale: Locale; priority?: boolean }) {
   const isJa = locale === 'ja'
   const href = `${isJa ? '/cases' : '/en/cases'}/${item.slug}`
   return (
@@ -93,9 +94,9 @@ function CaseCard({ item, locale, priority = false }: { item: SoccerCase; locale
   )
 }
 
-export function CaseExplorer({ cases, locale }: { cases: SoccerCase[]; locale: Locale }) {
+export function CaseExplorer({ cases, locale, initialQuery = '' }: { cases: SoccerCase[]; locale: Locale; initialQuery?: string }) {
   const isJa = locale === 'ja'
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(initialQuery)
   const [category, setCategory] = useState<CaseCategory | 'all'>('all')
   const [grade, setGrade] = useState('all')
 
@@ -158,9 +159,23 @@ export function CaseExplorer({ cases, locale }: { cases: SoccerCase[]; locale: L
             {(isJa
               ? ['シュートが浮く', 'トラップすると止まりすぎる', '前を向けない', '1対1で抜けない', 'ロングキックが飛ばない']
               : ['long kick has no distance', 'cannot turn forward', 'lose the ball immediately']
-            ).map((suggestion) => (
-              <button type="button" key={suggestion} onClick={() => setQuery(suggestion)}>{suggestion}</button>
-            ))}
+            ).map((suggestion, index) => {
+              const topic = isJa ? caseTopics[[0, 1, 1, 3, 2][index]] : null
+              return topic ? (
+                <Link
+                  href={`/cases/topics/${topic.slug}`}
+                  key={suggestion}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    setQuery(suggestion)
+                  }}
+                >
+                  {suggestion}
+                </Link>
+              ) : (
+                <button type="button" key={suggestion} onClick={() => setQuery(suggestion)}>{suggestion}</button>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -174,11 +189,19 @@ export function CaseExplorer({ cases, locale }: { cases: SoccerCase[]; locale: L
           {(Object.keys(categoryLabels) as CaseCategory[]).map((key, index) => {
             const count = cases.filter((item) => item.category.includes(key)).length
             return (
-              <button type="button" key={key} onClick={() => selectCategory(key)} className={category === key ? 'active' : ''}>
+              <Link
+                href={`/cases/category/${key}`}
+                key={key}
+                onClick={(event) => {
+                  event.preventDefault()
+                  selectCategory(key)
+                }}
+                className={category === key ? 'active' : ''}
+              >
                 <small>{String(index + 1).padStart(2, '0')}</small>
                 <b>{categoryLabels[key][locale]}</b>
                 <span>{count} {isJa ? '症例' : count === 1 ? 'case' : 'cases'}</span>
-              </button>
+              </Link>
             )
           })}
         </div>

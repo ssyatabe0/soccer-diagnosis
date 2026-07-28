@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { CaseExplorer } from '@/components/cases/CaseExplorer'
 import { DiagnosisPath } from '@/components/cases/CaseShell'
 import { getPublicCases } from '@/lib/cases/public-cases'
+import { caseTopics } from '@/data/case-topics'
 
 const canonical = 'https://soccer-kateikyousi.com/cases/'
 const detailBase = 'https://soccer-diagnosis.vercel.app/cases'
@@ -31,25 +32,53 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic'
 
-export default async function CasesPage() {
+export default async function CasesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const cases = await getPublicCases()
+  const { q = '' } = await searchParams
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'CollectionPage',
-    name: 'サッカー症例データベース',
-    description: '実際の個人指導から、症状・原因・診断・処方・改善・再現性を整理する症例データベース。',
-    url: canonical,
-    inLanguage: 'ja',
-    mainEntity: {
-      '@type': 'ItemList',
-      numberOfItems: cases.length,
-      itemListElement: cases.map((item, index) => ({
-        '@type': 'ListItem',
-        position: index + 1,
-        url: `${detailBase}/${item.slug}`,
-        name: item.title.ja,
-      })),
-    },
+    '@graph': [
+      {
+        '@type': 'WebSite',
+        '@id': `${canonical}#website`,
+        name: 'サッカー症例データベース',
+        url: canonical,
+        inLanguage: 'ja',
+        publisher: { '@type': 'Organization', name: 'サッカー家庭教師', url: 'https://soccer-kateikyousi.com/' },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${canonical}?q={search_term_string}`,
+          },
+          'query-input': 'required name=search_term_string',
+        },
+      },
+      {
+        '@type': 'CollectionPage',
+        '@id': `${canonical}#collection`,
+        name: 'サッカー症例データベース',
+        description: '実際の個人指導から、症状・原因・診断・処方・改善・再現性を整理する症例データベース。',
+        url: canonical,
+        inLanguage: 'ja',
+        isPartOf: { '@id': `${canonical}#website` },
+        mainEntity: {
+          '@type': 'ItemList',
+          numberOfItems: cases.length,
+          itemListElement: cases.map((item, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            url: `${detailBase}/${item.slug}`,
+            name: item.title.ja,
+          })),
+        },
+        hasPart: caseTopics.map((topic) => ({
+          '@type': 'CollectionPage',
+          name: topic.title,
+          url: `https://soccer-diagnosis.vercel.app/cases/topics/${topic.slug}`,
+        })),
+      },
+    ],
   }
 
   return (
@@ -78,7 +107,7 @@ export default async function CasesPage() {
         <p>I don&apos;t teach soccer. <strong>I diagnose it.</strong></p>
         <span>教える前に、できない理由を見る。</span>
       </section>
-      <CaseExplorer cases={cases} locale="ja" />
+      <CaseExplorer cases={cases} locale="ja" initialQuery={q} />
       <DiagnosisPath locale="ja" />
     </main>
   )
