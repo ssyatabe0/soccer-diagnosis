@@ -561,6 +561,33 @@ export const soccerCases: SoccerCase[] = [
     source_status: 'public-source',
     featured_rank: 20,
   }),
+  proofCase({
+    case_id: 'CASE-0021',
+    slug: 'kick-feel-does-not-change',
+    title: {
+      ja: 'キックの感覚が変わらない',
+      en: 'Kick Feel Does Not Change',
+    },
+    age: null,
+    grade: null,
+    position: null,
+    symptom: {
+      ja: 'キックの感覚が変わらない',
+      en: 'The player does not feel a change in their kick.',
+    },
+    comparison_video: '2cie9k7tBks',
+    improvement_time: { ja: '3回', en: '3 kicks' },
+    category: ['long-ball', 'body-movement'],
+    tags: {
+      ja: 'キック 感覚 3回 踏み込み 身体の向き 力の伝わり方',
+      en: 'kick feel three kicks approach body direction force transfer',
+    },
+    created_at: '2026-07-30T00:00:00+09:00',
+    updated_at: '2026-07-30T00:00:00+09:00',
+    source_url: 'https://soccer-kateikyousi.com/video-proof-2cie9k7tbks/',
+    source_status: 'public-source',
+    featured_rank: 21,
+  }),
 ]
 
 export function getCanonicalCaseUrl(item: SoccerCase) {
