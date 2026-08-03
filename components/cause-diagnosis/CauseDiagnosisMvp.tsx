@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { track } from '@vercel/analytics'
 import type {
   CauseDiagnosisFrame,
   CauseDiagnosisResult,
@@ -129,12 +130,20 @@ export function CauseDiagnosisMvp() {
       return
     }
     setFile(next)
+    track('cause_video_selected', {
+      file_type: next.type || 'unknown',
+      size_mb: Math.round((next.size / 1024 / 1024) * 10) / 10,
+    })
   }
 
   async function analyze() {
     if (!file || symptom.trim().length < 3 || !consent) return
     setError('')
     setResult(null)
+    track('cause_diagnosis_started', {
+      symptom_length: symptom.trim().length,
+      has_context: context.trim().length > 0,
+    })
     try {
       setPhase('extracting')
       const extracted = await extractFrames(file)
@@ -153,11 +162,17 @@ export function CauseDiagnosisMvp() {
       if (!response.ok) throw new Error(payload.message || '分析を完了できませんでした。')
       setResult(payload)
       setPhase('done')
+      track('cause_diagnosis_completed', {
+        observation_count: payload.observations.length,
+        hypothesis_count: payload.cause_hypotheses.length,
+        related_case_count: payload.related_cases.length,
+      })
       try {
         localStorage.setItem(`cause-diagnosis:${payload.analysis_id}`, JSON.stringify(payload))
       } catch {}
       window.setTimeout(() => document.getElementById('cause-result')?.scrollIntoView({ behavior: 'smooth' }), 100)
     } catch (caught) {
+      track('cause_diagnosis_failed')
       setError(caught instanceof Error ? caught.message : '分析を完了できませんでした。')
       setPhase('idle')
     }
@@ -165,6 +180,7 @@ export function CauseDiagnosisMvp() {
 
   function downloadResult() {
     if (!result) return
+    track('cause_diagnosis_json_saved')
     const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
@@ -325,7 +341,11 @@ export function CauseDiagnosisMvp() {
               {result.related_cases.length ? (
                 <div className={styles.related}>
                   {result.related_cases.map((item) => (
-                    <a href={item.url} key={item.case_id}>
+                    <a
+                      href={item.url}
+                      key={item.case_id}
+                      onClick={() => track('cause_related_case_open', { case_id: item.case_id })}
+                    >
                       <small>{item.case_id}</small>
                       <h4>{item.title}</h4>
                       <p>{item.symptom}</p>
@@ -344,7 +364,12 @@ export function CauseDiagnosisMvp() {
 
             <div className={styles.resultActions}>
               <button type="button" onClick={downloadResult}>診断JSONを保存</button>
-              <a href="https://soccer-kateikyousi.com/start/">谷田部に原因確認を依頼</a>
+              <a
+                href="https://soccer-kateikyousi.com/start/"
+                onClick={() => track('cause_expert_cta_click')}
+              >
+                谷田部に原因確認を依頼
+              </a>
             </div>
           </section>
         )}
