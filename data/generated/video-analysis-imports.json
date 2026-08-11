@@ -1,48 +1,41 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-11T09:15:22.740Z",
+  "generated_at": "2026-08-11T10:17:08.522Z",
   "source": "谷田部指導パターンを分析",
   "policy": {
     "default_publish_status": "permission_needed",
     "auto_publish": false,
     "note": "公開許可と匿名化確認が揃うまで公開症例には表示しない。"
   },
-  "count": 24,
-  "errors": [
-    {
-      "file": "20260701_134713_clip.json",
-      "error": "Unexpected end of JSON input"
-    },
-    {
-      "file": "20260701_135012_clip.json",
-      "error": "Unexpected end of JSON input"
-    },
-    {
-      "file": "20260701_135355_full_lesson.json",
-      "error": "Unexpected end of JSON input"
-    },
-    {
-      "file": "20260701_164034_clip.json",
-      "error": "Unexpected end of JSON input"
-    },
-    {
-      "file": "20260701_164159_clip.json",
-      "error": "Unexpected end of JSON input"
-    },
-    {
-      "file": "20260701_164300_clip.json",
-      "error": "Unexpected end of JSON input"
-    },
-    {
-      "file": "20260701_164533_clip.json",
-      "error": "Unexpected end of JSON input"
-    },
-    {
-      "file": "20260701_170258_full_lesson.json",
-      "error": "Unexpected end of JSON input"
-    }
-  ],
+  "count": 32,
+  "errors": [],
   "records": [
+    {
+      "case_code": "VIDEO-2E88B48EB685",
+      "source_id": "20260701_134713_clip",
+      "source_file": "20260701_134713_clip.json",
+      "title": "短尺の実技クリップ。コーン/ボールを使った導入動作の確認。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "短尺の実技クリップ。コーン/ボールを使った導入動作の確認。",
+      "cause": "短尺単体では原因確定不可。フル動画と接続して、前後の文脈から原因を確定する必要がある。",
+      "improvement": "コーン/ボールを使った実技確認。同条件の前後比較候補",
+      "result": "同一条件の前後が揃えばビフォー/アフター候補。現時点では素材単体の記録。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "短尺",
+        "今日素材",
+        "実技"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
     {
       "case_code": "VIDEO-118482ECEDF0",
       "source_id": "20260701_134905_clip",
@@ -64,6 +57,61 @@
         "短尺",
         "今日素材",
         "実技"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
+    {
+      "case_code": "VIDEO-7D75BFE36029",
+      "source_id": "20260701_135012_clip",
+      "source_file": "20260701_135012_clip.json",
+      "title": "短尺の実技クリップ。修正後の再現確認。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "短尺の実技クリップ。修正後の再現確認。",
+      "cause": "短尺単体では原因確定不可。フル動画と接続して、前後の文脈から原因を確定する必要がある。",
+      "improvement": "コーン/ボールを使った実技確認。同条件の前後比較候補",
+      "result": "同一条件の前後が揃えばビフォー/アフター候補。現時点では素材単体の記録。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "短尺",
+        "今日素材",
+        "実技"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
+    {
+      "case_code": "VIDEO-1B6D572CB31A",
+      "source_id": "20260701_135355_full_lesson",
+      "source_file": "20260701_135355_full_lesson.json",
+      "title": "遠景映像上、選手1名に対してシュート、マーク、抜き方、立ち位置の確認を継続している。冒頭はテーマ確認と基礎動作の確認。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "遠景映像上、選手1名に対してシュート、マーク、抜き方、立ち位置の確認を継続している。冒頭はテーマ確認と基礎動作の確認。",
+      "cause": "プレー単体の技術不足ではなく、相手との距離・足の置き方・抜いた後に蹴れる身体の向きが揃っていないことが主原因と推定。",
+      "improvement": "相手を前に置いたシュート確認。逆足方向に抜いて利き足で蹴る方法の反復。マークの原則説明と実演。基礎シュート確認",
+      "result": "Beforeは抜いた後に蹴れる姿勢が作り切れていない状態。Afterは相手の前でも蹴れる向き・足の置き方に近づく。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "フルレッスン",
+        "シュート",
+        "マーク",
+        "逆足方向",
+        "利き足シュート",
+        "立ち位置"
       ],
       "youtube_url": null,
       "lesson_date": "2026-07-01",
@@ -92,6 +140,147 @@
         "説明",
         "保護者レポート",
         "診断言語化"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
+    {
+      "case_code": "VIDEO-E198DBE6D11D",
+      "source_id": "20260701_164034_clip",
+      "source_file": "20260701_164034_clip.json",
+      "title": "説明寄りの短尺素材。原因や判断基準の補足。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "説明寄りの短尺素材。原因や判断基準の補足。",
+      "cause": "改善理由・診断基準の言語化素材。技術処方そのものより、なぜその練習を選ぶかの説明に使う。",
+      "improvement": "説明素材としてカルテ本文・FAQ・保護者レポートへ転用",
+      "result": "同一条件の前後が揃えばビフォー/アフター候補。現時点では素材単体の記録。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "短尺",
+        "今日素材",
+        "説明",
+        "保護者レポート",
+        "診断言語化"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
+    {
+      "case_code": "VIDEO-8B46DDF43F07",
+      "source_id": "20260701_164159_clip",
+      "source_file": "20260701_164159_clip.json",
+      "title": "説明寄りの短尺素材。改善理由の言語化候補。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "説明寄りの短尺素材。改善理由の言語化候補。",
+      "cause": "改善理由・診断基準の言語化素材。技術処方そのものより、なぜその練習を選ぶかの説明に使う。",
+      "improvement": "説明素材としてカルテ本文・FAQ・保護者レポートへ転用",
+      "result": "同一条件の前後が揃えばビフォー/アフター候補。現時点では素材単体の記録。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "短尺",
+        "今日素材",
+        "説明",
+        "保護者レポート",
+        "診断言語化"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
+    {
+      "case_code": "VIDEO-329565803597",
+      "source_id": "20260701_164300_clip",
+      "source_file": "20260701_164300_clip.json",
+      "title": "説明寄りの短尺素材。練習意図の補足。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "説明寄りの短尺素材。練習意図の補足。",
+      "cause": "改善理由・診断基準の言語化素材。技術処方そのものより、なぜその練習を選ぶかの説明に使う。",
+      "improvement": "説明素材としてカルテ本文・FAQ・保護者レポートへ転用",
+      "result": "同一条件の前後が揃えばビフォー/アフター候補。現時点では素材単体の記録。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "短尺",
+        "今日素材",
+        "説明",
+        "保護者レポート",
+        "診断言語化"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
+    {
+      "case_code": "VIDEO-0C6FDCB7A5A4",
+      "source_id": "20260701_164533_clip",
+      "source_file": "20260701_164533_clip.json",
+      "title": "説明寄りの短尺素材。まとめ/価値説明候補。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "説明寄りの短尺素材。まとめ/価値説明候補。",
+      "cause": "改善理由・診断基準の言語化素材。技術処方そのものより、なぜその練習を選ぶかの説明に使う。",
+      "improvement": "説明素材としてカルテ本文・FAQ・保護者レポートへ転用",
+      "result": "同一条件の前後が揃えばビフォー/アフター候補。現時点では素材単体の記録。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "短尺",
+        "今日素材",
+        "説明",
+        "保護者レポート",
+        "診断言語化"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
+    {
+      "case_code": "VIDEO-8C24A6380736",
+      "source_id": "20260701_170258_full_lesson",
+      "source_file": "20260701_170258_full_lesson.json",
+      "title": "本人が自信を付けたいプレー、確実性を上げたいプレーの確認から開始。映像上はコーン間の進入、抜く方向、足の置き方、次の一歩が主対象。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "本人が自信を付けたいプレー、確実性を上げたいプレーの確認から開始。映像上はコーン間の進入、抜く方向、足の置き方、次の一歩が主対象。",
+      "cause": "相手を見た時の立ち位置、足の幅、足裏の使い方、逃げる方向の判断が曖昧で、次のプレーにつながる形で抜けていない。",
+      "improvement": "コーンを相手に見立てた突破練習。足裏で方向づける練習。抜いた後の次動作まで連続させる反復。左右の進入方向の確認",
+      "result": "Beforeはコーン前で足と体の向きが揃わず次動作が遅れる。Afterは足裏、足幅、逃げる方向が整理され、抜いた後に続けやすくなる。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "フルレッスン",
+        "ドリブル突破",
+        "足裏",
+        "足幅",
+        "コーン",
+        "次動作"
       ],
       "youtube_url": null,
       "lesson_date": "2026-07-01",
