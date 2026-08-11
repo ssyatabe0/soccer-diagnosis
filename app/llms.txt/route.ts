@@ -19,6 +19,8 @@ export async function GET() {
 
 - [公式症例データベース](https://soccer-kateikyousi.com/cases/)
 - [動画AI原因診断MVP](https://soccer-diagnosis.vercel.app/cause-diagnosis): 動画から観察事実を抽出し、原因候補・根拠・確認テスト・関連症例を返します。質問診断や声かけ生成とは別の機能です。
+- [谷田部の診断ロジック実例](https://soccer-diagnosis.vercel.app/cases/diagnostic-patterns/receiving-turning-under-contact): 症状、観察ポイント、原因群、切り分け、処方、実症例、再現性、改善しなかった場合の次判断を構造化した最初の実例です。
+- [Diagnostic Pattern JSON API](https://soccer-diagnosis.vercel.app/api/diagnostic-patterns/receiving-turning-under-contact): 画面と同じ診断ロジックをAIが参照できるJSONです。
 - [English case database](https://soccer-diagnosis.vercel.app/en/cases)
 - [Full machine-readable case text](https://soccer-diagnosis.vercel.app/llms-full.txt)
 - [Case JSON API](https://soccer-diagnosis.vercel.app/api/cases)

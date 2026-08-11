@@ -1,0 +1,79 @@
+.page { --ink:#11120f; --paper:#f5f4ef; --line:#d8d7cf; --lime:#cbff2e; --amber:#ffcc67; color:var(--ink); background:var(--paper); }
+.hero { padding:72px max(6vw,24px) 44px; background:#11120f; color:white; }
+.heroMeta { display:flex; justify-content:space-between; gap:16px; color:#a7a99e; font:700 11px/1.4 ui-monospace,monospace; letter-spacing:.12em; }
+.kicker { margin:52px 0 12px; color:var(--lime); font-size:13px; font-weight:800; letter-spacing:.08em; }
+.hero h1 { max-width:1000px; margin:0; font-size:clamp(38px,6.2vw,88px); line-height:1.04; letter-spacing:-.055em; }
+.lead { max-width:780px; margin:30px 0 0; color:#d7d8d0; font-size:clamp(16px,2vw,21px); line-height:1.9; }
+.truthBar { display:grid; grid-template-columns:1fr 1fr; max-width:960px; margin:48px 0 0; border:1px solid #3b3d36; }
+.truthBar div { padding:20px; display:flex; align-items:flex-start; gap:18px; }
+.truthBar div + div { border-left:1px solid #3b3d36; }
+.truthBar b { color:var(--lime); font-size:12px; }
+.truthBar div + div b { color:var(--amber); }
+.truthBar span { color:#d7d8d0; font-size:14px; line-height:1.6; }
+.jumpNav { position:sticky; top:0; z-index:5; display:flex; gap:0; overflow-x:auto; background:rgba(245,244,239,.96); border-bottom:1px solid var(--line); backdrop-filter:blur(12px); }
+.jumpNav a { flex:1 0 auto; padding:16px 20px; border-right:1px solid var(--line); color:#55574f; font-size:11px; font-weight:800; text-decoration:none; }
+.flow { max-width:1320px; margin:0 auto; padding:36px max(4vw,20px) 80px; }
+.block { display:grid; grid-template-columns:92px 1fr; border-bottom:1px solid var(--line); scroll-margin-top:58px; }
+.number { padding:44px 12px 0 0; color:#9b9d94; font:700 12px/1 ui-monospace,monospace; }
+.content { padding:40px 0 56px; min-width:0; }
+.heading { display:flex; justify-content:space-between; align-items:start; gap:20px; margin-bottom:28px; }
+.heading p { margin:0 0 7px; color:#777970; font:800 10px/1.2 ui-monospace,monospace; letter-spacing:.15em; }
+.heading h2 { margin:0; font-size:clamp(28px,3.5vw,48px); letter-spacing:-.04em; }
+.verified,.review { flex:none; display:inline-flex; padding:7px 10px; border-radius:99px; background:#e0f6a2; color:#243000; font-size:10px; font-weight:800; }
+.review { background:#ffe3aa; color:#583600; }
+.statement { max-width:920px; margin:0; font-size:clamp(27px,4vw,54px); font-weight:700; line-height:1.3; letter-spacing:-.04em; }
+.statementSmall { max-width:900px; margin:0; font-size:clamp(20px,2.5vw,31px); font-weight:650; line-height:1.65; letter-spacing:-.025em; }
+.factGrid,.cardGrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1px; margin-top:34px; background:var(--line); border:1px solid var(--line); }
+.factGrid div,.card { padding:25px; background:var(--paper); }
+.factGrid small,.card small,.interventions small,.repro small { color:#85877f; font:700 10px/1.3 ui-monospace,monospace; letter-spacing:.1em; }
+.factGrid p { margin:11px 0 0; font-size:17px; font-weight:650; line-height:1.6; }
+.cardGrid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.card h3 { margin:18px 0 10px; font-size:20px; }
+.card p { margin:0; color:#55574f; line-height:1.85; }
+.note { color:#66685f; }
+.causeList { margin-top:28px; border-top:1px solid var(--line); }
+.causeList > div { display:grid; grid-template-columns:72px 1fr; gap:20px; padding:27px 0; border-bottom:1px solid var(--line); }
+.causeList span { color:#9b9d94; font:700 12px/1 ui-monospace,monospace; }
+.causeList h3 { margin:0 0 8px; font-size:21px; }
+.causeList p { max-width:850px; margin:0; color:#55574f; line-height:1.8; }
+.pendingBlock { background:linear-gradient(90deg,rgba(255,204,103,.14),transparent 55%); }
+.questionBox { max-width:920px; margin-top:28px; padding:25px; border:1px solid #d2aa5a; background:#fff8e8; }
+.questionBox b { font-size:13px; }
+.questionBox ol { margin:17px 0 0; padding-left:23px; }
+.questionBox li { padding:5px 0; line-height:1.7; }
+.interventions { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.interventions > div { padding:27px; background:#11120f; color:white; }
+.interventions p { margin:17px 0 0; color:#e1e2da; font-size:17px; line-height:1.85; }
+.evidenceGrid { display:grid; grid-template-columns:.9fr 1.1fr; gap:42px; align-items:start; }
+.changeList { margin:0; padding:0; list-style:none; }
+.changeList li { padding:15px 0 15px 30px; border-bottom:1px solid var(--line); font-weight:650; line-height:1.6; position:relative; }
+.changeList li::before { content:'✓'; position:absolute; left:0; color:#6c8d00; font-weight:900; }
+.repro { margin-top:24px; padding:22px; background:#e7f2c5; }
+.repro p { margin:9px 0 0; line-height:1.7; }
+.videoWrap { background:#11120f; color:white; }
+.videoWrap iframe { display:block; width:100%; aspect-ratio:16/9; border:0; }
+.videoWrap p { margin:0; padding:17px 20px; color:#c7c9c0; font-size:12px; line-height:1.65; }
+.videoWrap b { color:white; }
+.sourceLinks { display:flex; flex-wrap:wrap; gap:12px; margin-top:24px; }
+.sourceLinks a { padding:12px 16px; border:1px solid #b9bbb1; color:var(--ink); font-size:12px; font-weight:800; text-decoration:none; }
+.machineSection { display:grid; grid-template-columns:1fr auto; gap:50px; align-items:end; padding:70px max(6vw,24px); background:var(--lime); }
+.machineSection .kicker { margin:0 0 10px; color:#405200; }
+.machineSection h2 { max-width:850px; margin:0; font-size:clamp(32px,5vw,68px); line-height:1.08; letter-spacing:-.05em; }
+.machineSection p:not(.kicker) { max-width:760px; margin:25px 0 0; line-height:1.8; }
+.machineSection > a { min-width:220px; padding:20px; border:2px solid #11120f; color:#11120f; display:flex; justify-content:space-between; gap:30px; font-weight:900; text-decoration:none; }
+
+@media (max-width:760px) {
+  .hero { padding-top:45px; }
+  .heroMeta { flex-direction:column; }
+  .kicker { margin-top:38px; }
+  .truthBar { grid-template-columns:1fr; }
+  .truthBar div + div { border-left:0; border-top:1px solid #3b3d36; }
+  .block { grid-template-columns:38px 1fr; }
+  .number { padding-top:32px; }
+  .content { padding:30px 0 44px; }
+  .heading { flex-direction:column; gap:12px; }
+  .factGrid,.cardGrid,.interventions,.evidenceGrid { grid-template-columns:1fr; }
+  .causeList > div { grid-template-columns:42px 1fr; gap:10px; }
+  .machineSection { grid-template-columns:1fr; align-items:start; padding-top:55px; padding-bottom:55px; }
+  .machineSection > a { min-width:0; }
+}
