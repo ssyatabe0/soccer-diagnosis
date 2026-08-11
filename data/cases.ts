@@ -588,6 +588,60 @@ export const soccerCases: SoccerCase[] = [
     source_status: 'public-source',
     featured_rank: 21,
   }),
+  proofCase({
+    case_id: 'CASE-0022',
+    slug: 'powerful-shot-not-stable',
+    title: {
+      ja: '強いシュートが安定しない',
+      en: 'Powerful Shots Are Not Consistent',
+    },
+    age: null,
+    grade: null,
+    position: null,
+    symptom: {
+      ja: '強いシュートを安定して打てない',
+      en: 'The player cannot strike powerful shots consistently.',
+    },
+    comparison_video: 'kcDUw5nemA0',
+    improvement_time: { ja: '3分', en: '3 minutes' },
+    category: ['shooting', 'body-movement'],
+    tags: {
+      ja: 'シュート キック 強いシュート 安定 身体の使い方',
+      en: 'shooting kicking powerful shot consistency body movement',
+    },
+    created_at: '2026-08-10T00:00:00+09:00',
+    updated_at: '2026-08-12T00:00:00+09:00',
+    source_url: 'https://soccer-kateikyousi.com/video-proof-kcduw5nema0/',
+    source_status: 'public-source',
+    featured_rank: 22,
+  }),
+  proofCase({
+    case_id: 'CASE-0023',
+    slug: 'practical-long-kick-height',
+    title: {
+      ja: '実戦で使えるロングキックの高さが安定しない',
+      en: 'Long-Kick Height Is Not Consistent in Match Situations',
+    },
+    age: null,
+    grade: null,
+    position: null,
+    symptom: {
+      ja: '実戦で使えるロングキックの高さが安定しない',
+      en: 'The player struggles to produce consistent height on a practical long kick.',
+    },
+    comparison_video: 'FfbcJHJAXvw',
+    improvement_time: { ja: '5分', en: '5 minutes' },
+    category: ['long-ball', 'body-movement'],
+    tags: {
+      ja: 'ロングキック 高さ 実戦 キック 身体の使い方',
+      en: 'long kick height match situation kicking body movement',
+    },
+    created_at: '2026-08-05T00:00:00+09:00',
+    updated_at: '2026-08-12T00:00:00+09:00',
+    source_url: 'https://soccer-kateikyousi.com/video-proof-ffbcjhjaxvw/',
+    source_status: 'public-source',
+    featured_rank: 23,
+  }),
 ]
 
 export function getCanonicalCaseUrl(item: SoccerCase) {
