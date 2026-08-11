@@ -1,60 +1,102 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-07-28T21:51:35.533Z",
+  "generated_at": "2026-08-11T09:15:22.740Z",
   "source": "谷田部指導パターンを分析",
   "policy": {
     "default_publish_status": "permission_needed",
     "auto_publish": false,
     "note": "公開許可と匿名化確認が揃うまで公開症例には表示しない。"
   },
-  "count": 21,
+  "count": 24,
   "errors": [
     {
       "file": "20260701_134713_clip.json",
-      "error": "ETIMEDOUT: connection timed out, read"
-    },
-    {
-      "file": "20260701_134905_clip.json",
-      "error": "ETIMEDOUT: connection timed out, read"
+      "error": "Unexpected end of JSON input"
     },
     {
       "file": "20260701_135012_clip.json",
-      "error": "ETIMEDOUT: connection timed out, read"
+      "error": "Unexpected end of JSON input"
     },
     {
       "file": "20260701_135355_full_lesson.json",
-      "error": "ETIMEDOUT: connection timed out, read"
-    },
-    {
-      "file": "20260701_163927_clip.json",
-      "error": "ETIMEDOUT: connection timed out, read"
+      "error": "Unexpected end of JSON input"
     },
     {
       "file": "20260701_164034_clip.json",
-      "error": "ETIMEDOUT: connection timed out, read"
+      "error": "Unexpected end of JSON input"
     },
     {
       "file": "20260701_164159_clip.json",
-      "error": "ETIMEDOUT: connection timed out, read"
+      "error": "Unexpected end of JSON input"
     },
     {
       "file": "20260701_164300_clip.json",
-      "error": "ETIMEDOUT: connection timed out, read"
+      "error": "Unexpected end of JSON input"
     },
     {
       "file": "20260701_164533_clip.json",
-      "error": "ETIMEDOUT: connection timed out, read"
+      "error": "Unexpected end of JSON input"
     },
     {
       "file": "20260701_170258_full_lesson.json",
-      "error": "ETIMEDOUT: connection timed out, read"
-    },
-    {
-      "file": "20260702_jh2_wing_singapore_full_lesson.json",
-      "error": "ETIMEDOUT: connection timed out, read"
+      "error": "Unexpected end of JSON input"
     }
   ],
   "records": [
+    {
+      "case_code": "VIDEO-118482ECEDF0",
+      "source_id": "20260701_134905_clip",
+      "source_file": "20260701_134905_clip.json",
+      "title": "短尺の実技クリップ。前クリップ後の修正・再実行。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "短尺の実技クリップ。前クリップ後の修正・再実行。",
+      "cause": "短尺単体では原因確定不可。フル動画と接続して、前後の文脈から原因を確定する必要がある。",
+      "improvement": "コーン/ボールを使った実技確認。同条件の前後比較候補",
+      "result": "同一条件の前後が揃えばビフォー/アフター候補。現時点では素材単体の記録。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "短尺",
+        "今日素材",
+        "実技"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
+    {
+      "case_code": "VIDEO-57C3DA08C4F3",
+      "source_id": "20260701_163927_clip",
+      "source_file": "20260701_163927_clip.json",
+      "title": "説明寄りの短尺素材。保護者/選手へ考え方を伝えている可能性。",
+      "age": null,
+      "grade": null,
+      "position": null,
+      "problem": "説明寄りの短尺素材。保護者/選手へ考え方を伝えている可能性。",
+      "cause": "改善理由・診断基準の言語化素材。技術処方そのものより、なぜその練習を選ぶかの説明に使う。",
+      "improvement": "説明素材としてカルテ本文・FAQ・保護者レポートへ転用",
+      "result": "同一条件の前後が揃えばビフォー/アフター候補。現時点では素材単体の記録。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "短尺",
+        "今日素材",
+        "説明",
+        "保護者レポート",
+        "診断言語化"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-01",
+      "updated_at": "2026-07-01"
+    },
     {
       "case_code": "VIDEO-6B1FAAF5AD6D",
       "source_id": "20260702_58yo_male_full_lesson",
@@ -120,6 +162,45 @@
       "youtube_url": null,
       "lesson_date": "2026-07-02",
       "updated_at": "2026-07-03T05:31:24"
+    },
+    {
+      "case_code": "VIDEO-7A3EB5FAB29D",
+      "source_id": "20260702_jh2_wing_singapore_full_lesson",
+      "source_file": "20260702_jh2_wing_singapore_full_lesson.json",
+      "title": "ウィングで前進した後、クロスやシュートに入る時にボールの置き場所、足順、身体の向きが揃い切らず、蹴る瞬間で帳尻を合わせようとしている。",
+      "age": 0,
+      "grade": "中学校2年生",
+      "position": "ウィング",
+      "problem": "ウィングで前進した後、クロスやシュートに入る時にボールの置き場所、足順、身体の向きが揃い切らず、蹴る瞬間で帳尻を合わせようとしている。",
+      "cause": "技術そのものの不足ではなく、蹴る直前の準備条件が揃っていないこと。谷田部は「蹴る瞬間」ではなく、その前の足順・身体の向き・ボールの角度・触る部位を原因として確定している。料理の例えで言えば、食材が揃う前に料理を始めている状態。",
+      "improvement": "W杯ゴールシーンを起点にしたシュート再現とスキル確認。右足/左足で蹴る前の踏み足とボール位置の確認。クロスを普通に上げるテストから、蹴りやすい斜めの転がし方へ修正。クロスステップ分解: 足をためてから蹴る準備動作を作る。小指側/アウトサイドで触る感覚づくり。アウトアウトで抜いて、そのままクロス/シュートへ入る反復。身体を少し遅らせるボディフェイントと、相手との距離調整。スピードを緩める/上げるタイミングの切り替え",
+      "result": "Beforeは、抜く/蹴る瞬間だけで何とかしようとしており、ボール位置・足順・身体の向きが遅れていた。Afterは、蹴る前にボールを斜めへ置く、アウトサイド小指側で運ぶ、身体を少し遅らせて相手を動かすことで、クロスやシュートに入る準備が整った。",
+      "improvement_time_seconds": null,
+      "publish_status": "permission_needed",
+      "publication_consent": false,
+      "anonymized_verified": false,
+      "verification_status": "case_ready_video_pending",
+      "tags": [
+        "2026-07-02",
+        "中2",
+        "ウィング",
+        "シンガポール",
+        "海外参加",
+        "クロス",
+        "シュート",
+        "アウトサイド",
+        "小指",
+        "アウトアウト",
+        "ボディフェイント",
+        "前準備",
+        "足順",
+        "蹴る前の準備",
+        "胸カメラ",
+        "音声あり"
+      ],
+      "youtube_url": null,
+      "lesson_date": "2026-07-02",
+      "updated_at": "2026-07-02T12:05:10"
     },
     {
       "case_code": "VIDEO-91DC6F8FC9AC",
