@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saveLineMessageForAiSecretary } from '@/lib/line-ai-secretary'
 import { handleStaffLineReply } from '@/lib/ai-secretary/staff-replies'
+import {
+  COACH_GUIDE_REPLY,
+  COACH_GUIDE_SENT_MARKER,
+  OFFICIAL_SOCCER_LINE_BASIC_ID,
+  isCoachGuideRequest,
+} from '@/lib/coach-guide-line-reply'
 
 const CTA = `
 さらに具体的な改善方法は
@@ -18,6 +24,7 @@ https://soccer-kateikyousi.com/
 
 const LINE_AUTO_REPLY_ENABLED = process.env.LINE_AUTO_REPLY_ENABLED === 'true'
 const LINE_BASIC_INFO_AUTO_REPLY_ENABLED = process.env.LINE_BASIC_INFO_AUTO_REPLY_ENABLED !== 'false'
+const COACH_GUIDE_AUTO_REPLY_ENABLED = process.env.COACH_GUIDE_AUTO_REPLY_ENABLED !== 'false'
 const FACILITY_BOOKING_ACCOUNT_KEY = 'facility_booking'
 
 function buildFacilityBookingReply(text: string) {
@@ -532,6 +539,45 @@ async function hasPriorLineMessage(accountKey: string, lineUserId: string) {
   }
 }
 
+async function hasRecordedLineMessage(accountKey: string, lineMessageId: string) {
+  if (!lineMessageId) return false
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key || url.includes('placeholder')) return false
+
+  try {
+    const response = await fetch(`${url.replace(/\/+$/, '')}/rest/v1/line_messages?account_key=eq.${encodeURIComponent(accountKey)}&line_message_id=eq.${encodeURIComponent(lineMessageId)}&select=id&limit=1`, {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      cache: 'no-store',
+    })
+    if (!response.ok) return false
+    const rows = await response.json()
+    return Array.isArray(rows) && rows.length > 0
+  } catch {
+    return false
+  }
+}
+
+async function isOfficialSoccerLineToken(token: string) {
+  if (!token) return false
+
+  try {
+    const response = await fetch('https://api.line.me/v2/bot/info', {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+    if (!response.ok) return false
+    const bot = await response.json() as { basicId?: string }
+    return bot.basicId === OFFICIAL_SOCCER_LINE_BASIC_ID
+  } catch {
+    return false
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -584,6 +630,50 @@ export async function POST(req: NextRequest) {
           accountKey,
           lineReplyStatus: facilityReplyStatus,
           lineReplyOk: facilityReplyOk,
+        })
+        continue
+      }
+
+      if (COACH_GUIDE_AUTO_REPLY_ENABLED && isCoachGuideRequest(accountKey, text)) {
+        const alreadyRecorded = await hasRecordedLineMessage(accountKey, event.message?.id || '')
+        if (alreadyRecorded) continue
+
+        let guideReplyStatus: number | undefined
+        let guideReplyOk = false
+        const officialTokenConfirmed = await isOfficialSoccerLineToken(lineChannelAccessToken)
+
+        if (officialTokenConfirmed && replyToken) {
+          try {
+            const response = await fetch('https://api.line.me/v2/bot/message/reply', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${lineChannelAccessToken}`,
+              },
+              body: JSON.stringify({
+                replyToken,
+                messages: [{ type: 'text', text: COACH_GUIDE_REPLY }],
+              }),
+            })
+            guideReplyStatus = response.status
+            guideReplyOk = response.ok
+          } catch (guideReplyError) {
+            console.error('coach guide reply error:', guideReplyError)
+          }
+        }
+
+        await saveLineMessageForAiSecretary({
+          event,
+          text,
+          extractedType: null,
+          autoReplyText: COACH_GUIDE_REPLY,
+          accountKey,
+          lineReplyStatus: guideReplyStatus,
+          lineReplyOk: guideReplyOk,
+          handled: guideReplyOk,
+          manualMemo: guideReplyOk
+            ? `${COACH_GUIDE_SENT_MARKER}: ${new Date().toISOString()}\n無料ガイドPDFリンクを公式LINEから自動返信済み`
+            : '無料ガイド自動返信失敗。公式LINEトークン・Reply APIを要確認。',
         })
         continue
       }

@@ -123,6 +123,18 @@ https://soccer-diagnosis.vercel.app/api/line/webhook?account=sysc_inquiry_news
 https://soccer-diagnosis.vercel.app/api/line/webhook?account=dribble_school
 ```
 
+### コーチ開業ガイドの限定自動返信
+
+`soccer_private_lesson` アカウントで次の文面を完全一致で受信した場合だけ、公開済みPDFのURLをLINE Reply APIで即時返信する。
+
+`【無料ガイド希望】サッカー個人指導コーチ開業ガイドを希望します`
+
+- 送信元Bot Basic IDが `@gnf9264z` と一致する場合のみ返信
+- LINEの同一メッセージIDは再返信しない
+- 成功時は `line_messages.status=handled` と送付済みメモを保存
+- 一般問い合わせ向けの自動返信設定とは独立
+- 緊急停止は `COACH_GUIDE_AUTO_REPLY_ENABLED=false`
+
 ## 診断ロジック
 
 - 10問の選択式質問

@@ -27,6 +27,8 @@ type SaveLineMessageInput = {
   accountKey?: string | null
   lineReplyStatus?: number
   lineReplyOk?: boolean
+  handled?: boolean
+  manualMemo?: string
 }
 
 type UserCandidate = {
@@ -428,6 +430,7 @@ export async function saveLineMessageForAiSecretary(input: SaveLineMessageInput)
     customer_status: customerStatus,
     ai_summary: summarizeLineMessage(input.text, input.extractedType),
     ai_reply_draft: aiReplyDraft,
+    manual_memo: input.manualMemo || null,
     customer_id: customerId,
     matched_user_id: matchedUserId,
     customer_candidates: candidates,
@@ -437,7 +440,7 @@ export async function saveLineMessageForAiSecretary(input: SaveLineMessageInput)
     line_reply_ok: input.lineReplyOk ?? null,
     raw_event: event,
     occurred_at: occurredAt,
-    status: matchedUserId ? 'matched' : 'needs_review',
+    status: input.handled ? 'handled' : matchedUserId ? 'matched' : 'needs_review',
   }).select('id').single()
 
   if (error) {
