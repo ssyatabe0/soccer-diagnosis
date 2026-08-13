@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { CaseExplorer } from '@/components/cases/CaseExplorer'
 import { DiagnosisPath } from '@/components/cases/CaseShell'
 import { getPublicCases } from '@/lib/cases/public-cases'
@@ -106,6 +107,24 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
       <section className="case-manifesto">
         <p>I don&apos;t teach soccer. <strong>I diagnose it.</strong></p>
         <span>教える前に、できない理由を見る。</span>
+      </section>
+      <section className="case-logic-experiment" aria-labelledby="case-logic-title">
+        <div className="case-logic-experiment-copy">
+          <p className="case-eyebrow">YATABE DIAGNOSTIC LOGIC · REAL CASE</p>
+          <h2 id="case-logic-title">一般論ではなく、<br />谷田部が見た順番を残す。</h2>
+          <p>
+            「ボールが来ない」「背負うと乱れる」を、受ける準備・ボールの置き場所・接触時の脱力という3つの原因群へ分解した実症例です。
+            確認できた事実と、まだ谷田部本人に確認すべき判断を分けて公開しています。
+          </p>
+        </div>
+        <div className="case-logic-experiment-proof">
+          <div><small>01</small><b>観察</b><span>どこを見たか</span></div>
+          <div><small>02</small><b>切り分け</b><span>何が未確定か</span></div>
+          <div><small>03</small><b>処方と再現</b><span>何を変え、どこで再現したか</span></div>
+          <Link href="https://soccer-diagnosis.vercel.app/cases/diagnostic-patterns/receiving-turning-under-contact?utm_source=case_database&utm_medium=internal_support&utm_campaign=p013_diagnostic_logic&utm_content=OPS_ECOSYS_001">
+            診断ロジックの実例を見る <span>→</span>
+          </Link>
+        </div>
       </section>
       <CaseExplorer cases={cases} locale="ja" initialQuery={q} />
       <DiagnosisPath locale="ja" />

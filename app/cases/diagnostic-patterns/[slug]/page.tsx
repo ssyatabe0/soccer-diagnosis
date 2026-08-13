@@ -191,6 +191,16 @@ export default async function DiagnosticPatternPage({ params }: Props) {
         </div>
         <a href={apiUrl} target="_blank" rel="noreferrer">構造化JSONを開く <span>↗</span></a>
       </section>
+      <section className={styles.diagnosisCta}>
+        <div>
+          <p className={styles.kicker}>APPLY THIS LOGIC TO YOUR VIDEO</p>
+          <h2>同じ症状でも、原因は同じとは限りません。</h2>
+          <p>あなたの動画から観察事実を先に抜き出し、原因候補・根拠・確認テスト・近い症例まで並べます。声かけ生成ではなく、原因を切り分ける入口です。</p>
+        </div>
+        <Link href="/cause-diagnosis?utm_source=diagnostic_pattern&utm_medium=internal_support&utm_campaign=p013_diagnostic_logic&utm_content=OPS_ECOSYS_001">
+          自分の動画で原因候補を出す <span>→</span>
+        </Link>
+      </section>
     </main>
   )
 }
