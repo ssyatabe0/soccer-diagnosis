@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-08-11T10:17:08.522Z",
+  "generated_at": "2026-08-22T22:12:19.712Z",
   "source": "谷田部指導パターンを分析",
   "policy": {
     "default_publish_status": "permission_needed",
@@ -734,7 +734,7 @@
       "publish_status": "permission_needed",
       "publication_consent": false,
       "anonymized_verified": false,
-      "verification_status": "case_ready_video_pending",
+      "verification_status": "video_check_required",
       "tags": [
         "中2",
         "DF",
@@ -770,7 +770,7 @@
       "publish_status": "permission_needed",
       "publication_consent": false,
       "anonymized_verified": false,
-      "verification_status": "case_ready_video_pending",
+      "verification_status": "video_check_required",
       "tags": [
         "ロングキック",
         "身体の使い方",
@@ -938,7 +938,7 @@
       "publish_status": "permission_needed",
       "publication_consent": false,
       "anonymized_verified": false,
-      "verification_status": "incomplete",
+      "verification_status": "video_check_required",
       "tags": [
         "20260712",
         "音声候補",
@@ -970,7 +970,7 @@
       "publish_status": "permission_needed",
       "publication_consent": false,
       "anonymized_verified": false,
-      "verification_status": "incomplete",
+      "verification_status": "video_check_required",
       "tags": [
         "20260712",
         "20260713登録",

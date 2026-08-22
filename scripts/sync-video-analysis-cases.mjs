@@ -48,6 +48,18 @@ function publicYoutubeUrl(record) {
   return candidates.find((url) => /^https:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\//.test(String(url))) || null
 }
 
+function hasVideoCheckRequired(record) {
+  const explicitValues = [
+    record.status,
+    record.verification,
+    record.verification_status,
+    record.public_case?.verification,
+  ]
+  return explicitValues.some((value) => (
+    typeof value === 'string' && value.includes('video_check_required')
+  ))
+}
+
 function normalize(record, sourceFile) {
   const sourceId = text(record.id) || text(record.case_id) || path.basename(sourceFile, '.json')
   const publicCase = record.public_case || {}
@@ -62,7 +74,7 @@ function normalize(record, sourceFile) {
   const sourceUpdated = text(record.updated_at) || text(record.created_at) || text(record.lesson_date)
   const verificationStatus = verifiedImprovementSeconds(record) !== null
     ? 'video_verified'
-    : (problem && cause ? 'case_ready_video_pending' : 'incomplete')
+    : (hasVideoCheckRequired(record) ? 'video_check_required' : (problem && cause ? 'case_ready_video_pending' : 'incomplete'))
 
   return {
     case_code: stableCode(sourceId),
